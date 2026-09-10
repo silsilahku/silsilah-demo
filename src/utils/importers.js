@@ -56,15 +56,19 @@ export const importJSON = async (file, ctx) => {
           }
         }
 
-        const savePromises = [];
+        const peoplePromises = [];
         Object.values(people).forEach((person) => {
-          savePromises.push(ctx.savePerson(person));
-        });
-        Object.values(unions).forEach((union) => {
-          savePromises.push(ctx.saveUnion(union));
+          peoplePromises.push(ctx.savePerson(person));
         });
 
-        await Promise.all(savePromises);
+        await Promise.all(peoplePromises);
+
+        const unionPromises = [];
+        Object.values(unions).forEach((union) => {
+          unionPromises.push(ctx.saveUnion(union));
+        });
+
+        await Promise.all(unionPromises);
 
         ctx.setPeople(people);
         ctx.setUnions(unions);
