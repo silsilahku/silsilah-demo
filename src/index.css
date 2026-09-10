@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    height: auto;
+    min-height: 4.25rem;
+    padding: 0.625rem 0.75rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+  }
+
+  .app-brand {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .app-brand p {
+    display: none;
+  }
+
+  .app-actions {
+    width: 100%;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .app-search {
+    width: auto;
+    flex: 1 1 10rem;
+    min-width: 0;
+  }
+
+  .app-actions > button {
+    flex: 0 0 2.25rem;
+  }
+
+  .export-import-button {
+    flex: 0 0 2.25rem;
+    width: 2.25rem;
+    padding-inline: 0;
+  }
+
+  .export-import-label {
+    display: none;
+  }
+
+  .app-actions > button[title='Export / Import Pohon'],
+  .app-actions > button[title='Reset pohon ke data awal'] {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .legend-overlay {
+    top: 0.625rem;
+    left: 0.625rem;
+    right: 0.625rem;
+    padding: 0.5rem 0.625rem;
+    gap: 0.625rem;
+    justify-content: space-between;
+    font-size: 0.6875rem;
+  }
+
+  .legend-overlay > div:first-child,
+  .legend-overlay > div:nth-of-type(2),
+  .legend-overlay > div:nth-of-type(3),
+  .legend-overlay > div:last-child {
+    display: none;
+  }
+
+  .legend-overlay label {
+    margin-left: auto;
+  }
+
+  .zoom-controls {
+    right: 0.75rem;
+    bottom: max(4.5rem, calc(env(safe-area-inset-bottom) + 1rem));
+  }
+
+  .zoom-controls button {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .relative.flex-1 {
+    touch-action: none;
+  }
+
+  .side-drawer {
+    top: 6.25rem;
+    width: min(22rem, 100vw);
+    padding: 1rem;
+    border-left: 0;
+    border-top: 1px solid #e2e8f0;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-overlay,
+  .print-overlay * {
+    visibility: visible;
+  }
+  .print-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: max-content;
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+}
+
+.export-canvas {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  pointer-events: none;
+}
+
+.print-overlay .print-tree,
+.export-canvas .print-tree {
+  display: block;
+  width: max-content;
+  min-width: 1px;
+}
+
+.print-tree .cursor-pointer {
+  display: none;
+}
+
+.print-person-card {
+  position: absolute;
+  width: 220px;
+  height: 110px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 2px solid #e2e8f0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
