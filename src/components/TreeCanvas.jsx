@@ -5,19 +5,37 @@ import SvgConnections from './SvgConnections';
 import PersonCard from './PersonCard';
 import LegendOverlay from './LegendOverlay';
 import ZoomControls from './ZoomControls';
+import { useCallback, useEffect, useRef } from 'react';
 
 const TreeCanvas = () => {
   const ctx = useTreeContext();
   const isTreeEmpty = Object.keys(ctx.people).length === 0;
+  const canvasRef = useRef(null);
+
+  const handleWheelCanvas = useCallback((e) => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    ctx.setTransform(prev => ({
+      ...prev,
+      scale: Math.min(2.5, Math.max(0.2, prev.scale * zoomFactor)),
+    }));
+  }, [ctx]);
+
+  useEffect(() => {
+    const node = canvasRef.current;
+    if (!node) return;
+    node.addEventListener('wheel', handleWheelCanvas, { passive: false });
+    return () => node.removeEventListener('wheel', handleWheelCanvas);
+  }, [handleWheelCanvas]);
 
   return (
     <div
+      ref={canvasRef}
       className="relative flex-1 cursor-grab active:cursor-grabbing overflow-hidden select-none bg-slate-50"
       onMouseDown={ctx.handleMouseDownCanvas}
       onMouseMove={ctx.handleMouseMoveCanvas}
       onMouseUp={ctx.handleMouseUpCanvas}
       onMouseLeave={ctx.handleMouseUpCanvas}
-      onWheel={ctx.handleWheelCanvas}
       onTouchStart={ctx.handleTouchStartCanvas}
       onTouchMove={ctx.handleTouchMoveCanvas}
       onTouchEnd={ctx.handleTouchEndCanvas}
