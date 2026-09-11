@@ -23,3 +23,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local env / secrets (never commit)
+.env
+.env.*
+
+# Kilo session artifacts (canvas/state, not project source)
+.kombai/
+
