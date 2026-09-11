@@ -9,7 +9,7 @@ const PrintPersonCard = ({ person, offset = { x: 0, y: 0 } }) => {
         left: person.x + offset.x,
         top: person.y + offset.y,
         width: '220px',
-        height: '110px',
+        height: '118px',
       }}
       className="print-person-card"
     >
@@ -18,7 +18,7 @@ const PrintPersonCard = ({ person, offset = { x: 0, y: 0 } }) => {
           <img
             src={person.photo}
             alt={displayName}
-            className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200"
+            className="w-14 h-14 rounded-full object-cover shrink-0 border border-slate-200"
             onError={(e) => {
               e.target.onerror = null;
               e.target.style.display = 'none';
@@ -26,7 +26,7 @@ const PrintPersonCard = ({ person, offset = { x: 0, y: 0 } }) => {
           />
         ) : (
           <div
-            className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm shrink-0 ${
+            className={`w-14 h-14 rounded-full flex items-center justify-center font-semibold text-sm shrink-0 ${
               isMale ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
             }`}
           >

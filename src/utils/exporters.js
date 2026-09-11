@@ -195,7 +195,7 @@ export const exportHTML = async (people, unions, layoutDirection = 'horizontal')
   .person-card {
     position: absolute;
     width: 220px;
-    height: 110px;
+    height: 118px;
     background: #fff;
     border-radius: 12px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
@@ -206,8 +206,8 @@ export const exportHTML = async (people, unions, layoutDirection = 'horizontal')
     justify-content: space-between;
   }
   .card-header { display: flex; align-items: center; gap: 10px; }
-  .card-header img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; }
-  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #dbeafe; color: #1e40af; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .card-header img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; }
+  .avatar { width: 56px; height: 56px; border-radius: 50%; background: #dbeafe; color: #1e40af; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
   .name { font-weight: 600; font-size: 13px; color: #1e293b; }
   .meta { font-size: 11px; color: #64748b; margin-top: 2px; }
   .notes { font-size: 10px; color: #94a3b8; font-style: italic; border-top: 1px solid #f1f5f9; padding-top: 6px; margin-top: 4px; }

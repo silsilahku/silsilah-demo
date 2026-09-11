@@ -315,9 +315,9 @@
   }
 
   .card-avatar {
-    height: 3rem;
-    width: 3rem;
-    flex: 0 0 3rem;
+    height: 3.5rem;
+    width: 3.5rem;
+    flex: 0 0 3.5rem;
   }
 
   .card-name {
@@ -901,8 +901,8 @@
 
   .print-person-card {
     position: absolute;
-    width: 220px;
-    height: 110px;
+  width: 220px;
+  height: 118px;
     border: 2px solid #e2e8f0;
     border-radius: 12px;
     background: #ffffff;

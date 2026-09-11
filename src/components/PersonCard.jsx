@@ -119,7 +119,7 @@ const PersonCard = ({ person }) => {
       style={{
         transform: `translate(${person.x}px, ${person.y}px)`,
         width: '220px',
-        height: '110px',
+        height: '118px',
         opacity: isDimmed ? 'var(--tree-card-dim-opacity)' : 1,
         transition: 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s',
       }}
@@ -131,7 +131,7 @@ const PersonCard = ({ person }) => {
             : 'border-pink-200 hover:border-pink-400'
       } ${person.isDeceased ? 'bg-slate-200 text-slate-700' : ''} ${isRelationMenuOpen ? 'z-40' : ''}`}
     >
-      <div className="card-identity flex h-12 min-w-0 items-center gap-2.5">
+      <div className="card-identity flex h-14 min-w-0 items-center gap-2.5">
         <PersonAvatar
           key={person.photo || 'initial-avatar'}
           person={person}

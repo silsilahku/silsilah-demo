@@ -1,5 +1,5 @@
 export const CARD_WIDTH = 220;
-export const CARD_HEIGHT = 110;
+export const CARD_HEIGHT = 118;
 export const X_GAP = 140;
 export const Y_GAP = 100;
 export const MIN_GAP_CROSS = 40;
