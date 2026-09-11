@@ -18,7 +18,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
   const [unions, setUnions] = useState(initialData.unions);
   const [hoveredUnionId, setHoveredUnionId] = useState(null);
   const [collapsedUnions, setCollapsedUnions] = useState(new Set());
-  const [isHighlightEnabled, setIsHighlightEnabled] = useState(true);
+  const [isHighlightEnabled, setIsHighlightEnabled] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [transform, setTransform] = useState({ x: 80, y: 60, scale: 0.85 });
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
@@ -813,7 +813,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     setTransform({ x: 80, y: 60, scale: 0.85 });
     setCollapsedUnions(new Set());
     setHoveredUnionId(null);
-    setIsHighlightEnabled(true);
+    setIsHighlightEnabled(false);
     setIsMemberIndexOpen(false);
     setIsEditDrawerOpen(false);
     setIsSelectSpouseModalOpen(false);
