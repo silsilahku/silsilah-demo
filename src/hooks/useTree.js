@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { autoArrangeTree } from '../utils/layout-engine';
 import { calculateGenerations } from '../utils/generations';
 import { CARD_WIDTH, CARD_HEIGHT, X_GAP, Y_GAP, MIN_GAP_CROSS } from '../utils/constants';
@@ -27,6 +27,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     lastCenter: null,
     lastDistance: 0,
   });
+  const centerPendingRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMemberIndexOpen, setIsMemberIndexOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
@@ -218,6 +219,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     const nextDir = layoutDirection === 'horizontal' ? 'vertical' : 'horizontal';
     setLayoutDirection(nextDir);
     setPeople(autoArrangeTree(people, unions, nextDir));
+    centerPendingRef.current = true;
   }, [people, unions, layoutDirection]);
 
   const toggleCollapseUnion = useCallback((unionId) => {
@@ -669,8 +671,8 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     }));
   }, []);
 
-  const centerTree = useCallback(() => {
-    const visiblePeople = Object.values(people);
+  const centerOn = (peopleMap) => {
+    const visiblePeople = Object.values(peopleMap);
     if (visiblePeople.length === 0) {
       setTransform({ x: 80, y: 60, scale: 0.85 });
       return;
@@ -688,6 +690,26 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
       x: viewportWidth / 2 - ((minX + maxX) / 2) * prev.scale,
       y: viewportHeight / 2 - ((minY + maxY) / 2) * prev.scale,
     }));
+  };
+
+  // Marks the tree to be auto-centered on the next people update (e.g. right
+  // after loading from DB or re-arranging when toggling the layout direction).
+  const requestCenter = useCallback(() => {
+    centerPendingRef.current = true;
+  }, []);
+
+  // Runs after `people` (and layout) have settled so the new coordinates are
+  // already applied before we compute the centering transform.
+  useEffect(() => {
+    if (!centerPendingRef.current) return;
+    centerPendingRef.current = false;
+    centerOn(people);
+    // `centerOn` reads `people` from the closure; depend on it explicitly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [people, layoutDirection]);
+
+  const centerTree = useCallback(() => {
+    centerOn(people);
   }, [people]);
 
   const handleTouchStartCanvas = useCallback((e) => {
@@ -884,6 +906,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     handleMouseUpCanvas,
     handleWheelCanvas,
     centerTree,
+    requestCenter,
     handleTouchStartCanvas,
     handleTouchMoveCanvas,
     handleTouchEndCanvas,

@@ -975,7 +975,7 @@
 
   .zoom-controls {
     right: 0.75rem;
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
 
   .side-drawer {

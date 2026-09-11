@@ -30,6 +30,7 @@ function App() {
           autoArrangeTree(data.people, data.unions, tree.layoutDirection)
         );
         tree.setUnions(data.unions);
+        tree.requestCenter();
       }
     };
     loadFromDb();
@@ -351,7 +352,7 @@ function App() {
 
   return (
     <TreeProvider value={contextValue}>
-      <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-100">
+      <div className="flex flex-col h-dvh w-dvw overflow-hidden bg-slate-100">
         <HeaderBar />
         <TreeCanvas />
         <SideDrawer />

@@ -31,3 +31,6 @@ dist-ssr
 # Kilo session artifacts (canvas/state, not project source)
 .kombai/
 
+# Local backups (snapshots taken before refactors, not project source)
+backups/
+
