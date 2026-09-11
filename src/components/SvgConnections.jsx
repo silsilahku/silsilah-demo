@@ -104,7 +104,7 @@ const SvgConnections = ({ staticMode = false }) => {
         paths.push(
           <g
             key={`union-line-${u.id}`}
-            style={{ opacity: isDimmed ? 0.2 : 1, transition: 'opacity 0.3s' }}
+style={{ opacity: isDimmed ? 'var(--tree-line-dim-opacity)' : 1, transition: 'opacity 0.3s' }}
           >
             <path
               d={partnerPathD}
@@ -135,7 +135,7 @@ const SvgConnections = ({ staticMode = false }) => {
         paths.push(
           <g
             key={`union-line-${u.id}`}
-            style={{ opacity: isDimmed ? 0.2 : 1, transition: 'opacity 0.3s' }}
+style={{ opacity: isDimmed ? 'var(--tree-line-dim-opacity)' : 1, transition: 'opacity 0.3s' }}
           >
             <path
               d={singlePartnerPathD}
@@ -164,7 +164,7 @@ const SvgConnections = ({ staticMode = false }) => {
         paths.push(
           <g
             key={`children-trunk-${u.id}`}
-            style={{ opacity: isDimmed ? 0.15 : 1, transition: 'opacity 0.3s' }}
+style={{ opacity: isDimmed ? 'var(--tree-child-line-dim-opacity)' : 1, transition: 'opacity 0.3s' }}
           >
             <path
               d={trunkPathD}
@@ -194,7 +194,7 @@ const SvgConnections = ({ staticMode = false }) => {
             <g
               key={`child-branch-${u.id}-${cId}`}
               style={{
-                opacity: childDimmed ? 0.15 : 1,
+opacity: childDimmed ? 'var(--tree-child-line-dim-opacity)' : 1,
                 transition: 'opacity 0.3s',
               }}
             >
@@ -306,7 +306,7 @@ const SvgConnections = ({ staticMode = false }) => {
         paths.push(
           <g
             key={`union-line-${u.id}`}
-            style={{ opacity: isDimmed ? 0.2 : 1, transition: 'opacity 0.3s' }}
+style={{ opacity: isDimmed ? 'var(--tree-line-dim-opacity)' : 1, transition: 'opacity 0.3s' }}
           >
             <path
               d={partnerPathD}
@@ -337,7 +337,7 @@ const SvgConnections = ({ staticMode = false }) => {
         paths.push(
           <g
             key={`union-line-${u.id}`}
-            style={{ opacity: isDimmed ? 0.2 : 1, transition: 'opacity 0.3s' }}
+style={{ opacity: isDimmed ? 'var(--tree-line-dim-opacity)' : 1, transition: 'opacity 0.3s' }}
           >
             <path
               d={singlePartnerPathD}
@@ -366,7 +366,7 @@ const SvgConnections = ({ staticMode = false }) => {
         paths.push(
           <g
             key={`children-trunk-${u.id}`}
-            style={{ opacity: isDimmed ? 0.15 : 1, transition: 'opacity 0.3s' }}
+style={{ opacity: isDimmed ? 'var(--tree-child-line-dim-opacity)' : 1, transition: 'opacity 0.3s' }}
           >
             <path
               d={trunkPathD}
@@ -396,7 +396,7 @@ const SvgConnections = ({ staticMode = false }) => {
             <g
               key={`child-branch-${u.id}-${cId}`}
               style={{
-                opacity: childDimmed ? 0.15 : 1,
+opacity: childDimmed ? 'var(--tree-child-line-dim-opacity)' : 1,
                 transition: 'opacity 0.3s',
               }}
             >

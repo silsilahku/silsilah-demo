@@ -28,6 +28,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     lastDistance: 0,
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMemberIndexOpen, setIsMemberIndexOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isSelectSpouseModalOpen, setIsSelectSpouseModalOpen] = useState(false);
   const [isSelectParentModalOpen, setIsSelectParentModalOpen] = useState(false);
@@ -791,6 +792,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     setCollapsedUnions(new Set());
     setHoveredUnionId(null);
     setIsHighlightEnabled(true);
+    setIsMemberIndexOpen(false);
     setIsEditDrawerOpen(false);
     setIsSelectSpouseModalOpen(false);
     setIsSelectParentModalOpen(false);
@@ -836,6 +838,8 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     dragStart,
     searchQuery,
     setSearchQuery,
+    isMemberIndexOpen,
+    setIsMemberIndexOpen,
     filteredPeopleList,
     isEditDrawerOpen,
     setIsEditDrawerOpen,
