@@ -644,6 +644,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
 
   const handleMouseDownCanvas = useCallback((e) => {
     if (e.target.closest('.card-node') || e.target.closest('.interactive-btn')) return;
+    setSelectedId(null);
     setIsDraggingCanvas(true);
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   }, [transform]);
