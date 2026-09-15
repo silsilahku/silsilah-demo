@@ -4,6 +4,33 @@ import { calculateGenerations } from '../utils/generations';
 import { CARD_WIDTH, CARD_HEIGHT, X_GAP, Y_GAP, MIN_GAP_CROSS } from '../utils/constants';
 import { sortChildrenByBirthDate } from '../utils/child-sort';
 
+// Module-level helper so it can also be called synchronously from
+// toggleCollapseUnion (before the collapsedUnions state has committed).
+export const computeHiddenPersonIds = (unions, collapsedUnionsSet) => {
+  const hidden = new Set();
+  if (!collapsedUnionsSet || collapsedUnionsSet.size === 0) return hidden;
+
+  const hideDescendants = (unionId) => {
+    const u = unions[unionId];
+    if (!u || !u.childrenIds) return;
+    u.childrenIds.forEach(cId => {
+      if (!hidden.has(cId)) {
+        hidden.add(cId);
+        Object.values(unions).forEach(childUnion => {
+          if (childUnion.partner1Id === cId || childUnion.partner2Id === cId) {
+            const spouseId = childUnion.partner1Id === cId ? childUnion.partner2Id : childUnion.partner1Id;
+            if (spouseId) hidden.add(spouseId);
+            hideDescendants(childUnion.id);
+          }
+        });
+      }
+    });
+  };
+
+  collapsedUnionsSet.forEach(uId => hideDescendants(uId));
+  return hidden;
+};
+
 export const useTree = (initialData = { people: {}, unions: {} }) => {
   const persistRef = useRef(null);
 
@@ -48,30 +75,10 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     return values.length > 0 ? Math.max(...values) : 1;
   }, [genMap]);
 
-  const hiddenPersonIds = useMemo(() => {
-    const hidden = new Set();
-    if (collapsedUnions.size === 0) return hidden;
-
-    const hideDescendants = (unionId) => {
-      const u = unions[unionId];
-      if (!u || !u.childrenIds) return;
-      u.childrenIds.forEach(cId => {
-        if (!hidden.has(cId)) {
-          hidden.add(cId);
-          Object.values(unions).forEach(childUnion => {
-            if (childUnion.partner1Id === cId || childUnion.partner2Id === cId) {
-              const spouseId = childUnion.partner1Id === cId ? childUnion.partner2Id : childUnion.partner1Id;
-              if (spouseId) hidden.add(spouseId);
-              hideDescendants(childUnion.id);
-            }
-          });
-        }
-      });
-    };
-
-    collapsedUnions.forEach(uId => hideDescendants(uId));
-    return hidden;
-  }, [collapsedUnions, unions]);
+  const hiddenPersonIds = useMemo(
+    () => computeHiddenPersonIds(unions, collapsedUnions),
+    [unions, collapsedUnions]
+  );
 
   const activeLineageIds = useMemo(() => {
     if (!isHighlightEnabled || !selectedId) return null;
@@ -212,24 +219,28 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
   }, [people, searchQuery]);
 
   const handleAutoArrange = useCallback((dir = layoutDirection) => {
-    setPeople(autoArrangeTree(people, unions, dir));
-  }, [people, unions, layoutDirection]);
+    setPeople(autoArrangeTree(people, unions, dir, hiddenPersonIds));
+  }, [people, unions, layoutDirection, hiddenPersonIds]);
 
   const toggleLayoutDirection = useCallback(() => {
     const nextDir = layoutDirection === 'horizontal' ? 'vertical' : 'horizontal';
     setLayoutDirection(nextDir);
-    setPeople(autoArrangeTree(people, unions, nextDir));
+    setPeople(autoArrangeTree(people, unions, nextDir, hiddenPersonIds));
     centerPendingRef.current = true;
-  }, [people, unions, layoutDirection]);
+  }, [people, unions, layoutDirection, hiddenPersonIds]);
 
   const toggleCollapseUnion = useCallback((unionId) => {
-    setCollapsedUnions(prev => {
-      const next = new Set(prev);
-      if (next.has(unionId)) next.delete(unionId);
-      else next.add(unionId);
-      return next;
-    });
-  }, []);
+    const next = new Set(collapsedUnions);
+    if (next.has(unionId)) next.delete(unionId);
+    else next.add(unionId);
+    setCollapsedUnions(next);
+
+    // Immediately relayout so hidden branches are treated as non-existent:
+    // neighbours slide in to close the gap (collapse) or make room (expand).
+    setPeople(prevPeople =>
+      autoArrangeTree(prevPeople, unions, layoutDirection, computeHiddenPersonIds(unions, next))
+    );
+  }, [collapsedUnions, unions, layoutDirection]);
 
   const getParentUnion = useCallback((personId) => {
     return Object.values(unions).find(u => u.childrenIds && u.childrenIds.includes(personId));
@@ -313,7 +324,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     const nextPeople = { ...people, [newPersonId]: newPerson };
     const nextUnions = { ...unions };
 
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection));
+    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
     setUnions(nextUnions);
     setSelectedId(newPersonId);
 
@@ -324,7 +335,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
         console.error('Gagal menyimpan orang pertama ke Supabase:', err);
       }
     })();
-  }, [people, unions, layoutDirection]);
+  }, [people, unions, layoutDirection, hiddenPersonIds]);
 
   const handleAddSpouse = useCallback((targetPersonId) => {
     const target = people[targetPersonId];
@@ -363,7 +374,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     const nextPeople = { ...people, [newPersonId]: newPerson };
     const nextUnions = { ...unions, [newUnionId]: newUnion };
 
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection));
+    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
     setUnions(nextUnions);
     setSelectedId(newPersonId);
 
@@ -381,7 +392,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
         console.error('Gagal menyimpan pasangan ke Supabase:', err);
       }
     })();
-  }, [people, unions, layoutDirection, getSpouses]);
+  }, [people, unions, layoutDirection, getSpouses, hiddenPersonIds]);
 
   const createChildForUnion = useCallback((unionId, parent1Id, partnerPerson) => {
     const parent1 = people[parent1Id];
@@ -422,7 +433,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
       },
     };
 
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection));
+    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
     setUnions(nextUnions);
     setSelectedId(childId);
     setIsSelectSpouseModalOpen(false);
@@ -441,7 +452,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
         console.error('Gagal menyimpan anak ke Supabase:', err);
       }
     })();
-  }, [people, unions, layoutDirection]);
+  }, [people, unions, layoutDirection, hiddenPersonIds]);
 
   const handleAddChildClick = useCallback((targetPersonId) => {
     const target = people[targetPersonId];
@@ -498,7 +509,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
       const nextPeople = { ...people, [dummySpouseId]: dummySpouse, [childId]: newChild };
       const nextUnions = { ...unions, [newUnionId]: newUnion };
 
-      setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection));
+      setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
       setUnions(nextUnions);
       setSelectedId(childId);
 
@@ -527,7 +538,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
       setSpouseOptions(spouses);
       setIsSelectSpouseModalOpen(true);
     }
-  }, [people, unions, layoutDirection, getSpouses, createChildForUnion]);
+  }, [people, unions, layoutDirection, getSpouses, createChildForUnion, hiddenPersonIds]);
 
   const handleAddParentClick = useCallback((targetPersonId) => {
     setPendingParentTargetId(targetPersonId);
@@ -610,7 +621,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
 
     const nextPeople = { ...people, [newParentId]: newParent };
 
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection));
+    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
     setUnions(nextUnions);
     setSelectedId(newParentId);
     setIsSelectParentModalOpen(false);
@@ -623,7 +634,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
         console.error('Gagal menyimpan orang tua ke Supabase:', err);
       }
     })();
-  }, [people, unions, layoutDirection, getParentUnion]);
+  }, [people, unions, layoutDirection, getParentUnion, hiddenPersonIds]);
 
   const handleDeletePerson = useCallback((personId) => {
     const nextPeople = { ...people };
@@ -636,11 +647,11 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
       nextUnions[u.id] = { ...u, childrenIds: cleanChildren };
     });
 
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection));
+    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
     setUnions(nextUnions);
     setSelectedId(null);
     setIsEditDrawerOpen(false);
-  }, [people, unions, layoutDirection]);
+  }, [people, unions, layoutDirection, hiddenPersonIds]);
 
   const handleMouseDownCanvas = useCallback((e) => {
     if (e.target.closest('.card-node') || e.target.closest('.interactive-btn')) return;

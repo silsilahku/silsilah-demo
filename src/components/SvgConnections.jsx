@@ -39,8 +39,10 @@ const SvgConnections = ({ staticMode = false }) => {
   });
 
   unionList.forEach((u, unionIdx) => {
-    const p1 = people[u.partner1Id];
-    const p2 = people[u.partner2Id];
+    // Treat hidden (collapsed-away) partners as absent so spouse lines and
+    // union badges do not point at stale positions of invisible cards.
+    const p1 = (!staticMode && hiddenPersonIds.has(u.partner1Id)) ? null : people[u.partner1Id];
+    const p2 = (!staticMode && hiddenPersonIds.has(u.partner2Id)) ? null : people[u.partner2Id];
     const unionColor = UNION_COLORS[unionIdx % UNION_COLORS.length];
     const isHovered = !staticMode && hoveredUnionId === u.id;
     const isCollapsed = !staticMode && collapsedUnions.has(u.id);

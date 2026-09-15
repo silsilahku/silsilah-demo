@@ -123,7 +123,7 @@ const PersonCard = ({ person }) => {
         opacity: isDimmed ? 'var(--tree-card-dim-opacity)' : 1,
         transition: 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s',
       }}
-      className={`card-node absolute flex cursor-pointer flex-col justify-between rounded-xl border-2 bg-white p-2 shadow-[0_1px_3px_rgba(15,23,42,0.08)] transition-all hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/40 ${
+      className={`card-node card-node--reveal absolute flex cursor-pointer flex-col justify-between rounded-xl border-2 bg-white p-2 shadow-[0_1px_3px_rgba(15,23,42,0.08)] transition-all hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/40 ${
         isSelected
           ? 'z-30 border-indigo-600 ring-4 ring-indigo-500/10 shadow-indigo-100'
           : isMale

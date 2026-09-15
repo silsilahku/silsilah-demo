@@ -3,7 +3,7 @@ import {
 } from './constants';
 import { sortChildrenByBirthDate } from './child-sort';
 
-export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horizontal') => {
+export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horizontal', hiddenSet = new Set()) => {
   const isVert = direction === 'vertical';
 
   // Deterministic iteration order: DB SELECT results have no guaranteed row
@@ -29,7 +29,9 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
 
   const rootIds = [];
   personIds.forEach(pId => {
-    if (!childToUnionMap[pId]) {
+    // Hidden people (descendants of collapsed unions) are treated as
+    // non-existent in the layout so adjacent nodes collapse the gap.
+    if (!hiddenSet.has(pId) && !childToUnionMap[pId]) {
       const unions = getPersonUnions(pId);
       const isSpouseOfRoot = unions.some(u => {
         const spouseId = u.partner1Id === pId ? u.partner2Id : u.partner1Id;
@@ -65,7 +67,7 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
       personUnions.forEach(u => {
         const spouseId = u.partner1Id === personId ? u.partner2Id : u.partner1Id;
         const validChildren = sortChildrenByBirthDate(
-          (u.childrenIds || []).filter(cId => updatedPeople[cId]),
+          (u.childrenIds || []).filter(cId => updatedPeople[cId] && !hiddenSet.has(cId)),
           updatedPeople
         );
 
@@ -86,7 +88,7 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
           ? (childrenMinY + childrenMaxY) / 2
           : (uStartY + CARD_HEIGHT / 2);
 
-        const spouseCount = (u.partner1Id && u.partner2Id) ? 1 : 0;
+        const spouseCount = (u.partner1Id && u.partner2Id && spouseId && !hiddenSet.has(spouseId)) ? 1 : 0;
         const coupleH = (spouseCount + 1) * CARD_HEIGHT + spouseCount * MIN_GAP_CROSS;
         const unionH = Math.max(coupleH + MIN_GAP_CROSS, childYCursor - uStartY);
 
@@ -103,7 +105,7 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
 
       unionLayouts.forEach(info => {
         const spouseId = info.spouseId;
-        if (spouseId && updatedPeople[spouseId] && !globalVisited.has(spouseId)) {
+        if (spouseId && updatedPeople[spouseId] && !globalVisited.has(spouseId) && !hiddenSet.has(spouseId)) {
           globalVisited.add(spouseId);
           const spouseY = info.childrenMidY - CARD_HEIGHT / 2;
           updatedPeople[spouseId] = { ...updatedPeople[spouseId], x: startX, y: spouseY };
@@ -127,7 +129,7 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
 
       const columnCards = [{ id: personId, y: primaryY }];
       unionLayouts.forEach(info => {
-        if (info.spouseId && updatedPeople[info.spouseId]) {
+        if (info.spouseId && updatedPeople[info.spouseId] && !hiddenSet.has(info.spouseId)) {
           columnCards.push({ id: info.spouseId, y: updatedPeople[info.spouseId].y });
         }
       });
@@ -178,7 +180,7 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
       personUnions.forEach(u => {
         const spouseId = u.partner1Id === personId ? u.partner2Id : u.partner1Id;
         const validChildren = sortChildrenByBirthDate(
-          (u.childrenIds || []).filter(cId => updatedPeople[cId]),
+          (u.childrenIds || []).filter(cId => updatedPeople[cId] && !hiddenSet.has(cId)),
           updatedPeople
         );
 
@@ -199,7 +201,7 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
           ? (childrenMinX + childrenMaxX) / 2
           : (uStartX + CARD_WIDTH / 2);
 
-        const spouseCount = (u.partner1Id && u.partner2Id) ? 1 : 0;
+        const spouseCount = (u.partner1Id && u.partner2Id && spouseId && !hiddenSet.has(spouseId)) ? 1 : 0;
         const coupleW = (spouseCount + 1) * CARD_WIDTH + spouseCount * MIN_GAP_CROSS;
         // Reserve room for the union badge (drawn 40px right of the couple,
         // 28px wide). Without the extra 34px the badge spills into the next
@@ -220,7 +222,7 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
 
       unionLayouts.forEach(info => {
         const spouseId = info.spouseId;
-        if (spouseId && updatedPeople[spouseId] && !globalVisited.has(spouseId)) {
+        if (spouseId && updatedPeople[spouseId] && !globalVisited.has(spouseId) && !hiddenSet.has(spouseId)) {
           globalVisited.add(spouseId);
           const spouseX = info.childrenMidX - CARD_WIDTH / 2;
           updatedPeople[spouseId] = { ...updatedPeople[spouseId], x: spouseX, y: startY };
@@ -244,7 +246,7 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
 
       const rowCards = [{ id: personId, x: primaryX }];
       unionLayouts.forEach(info => {
-        if (info.spouseId && updatedPeople[info.spouseId]) {
+        if (info.spouseId && updatedPeople[info.spouseId] && !hiddenSet.has(info.spouseId)) {
           rowCards.push({ id: info.spouseId, x: updatedPeople[info.spouseId].x });
         }
       });

@@ -1098,3 +1098,20 @@
     margin: 10mm;
   }
 }
+
+/* Cards that reappear after expanding a collapsed branch fade/scale in
+   while the surrounding nodes slide to their new positions. */
+@keyframes card-reveal {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.card-node--reveal {
+  animation: card-reveal 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
