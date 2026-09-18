@@ -59,8 +59,6 @@ const PersonCard = ({ person }) => {
     setIsEditDrawerOpen,
     handleAddSpouse,
     handleAddChildClick,
-    handleAddParentClick,
-    getParentUnion,
     getSpouses,
     getChildren,
   } = ctx;
@@ -77,7 +75,6 @@ const PersonCard = ({ person }) => {
   const children = getChildren(person.id);
   const spouseCount = spouses.length;
   const childCount = children.length;
-  const hasParentUnion = Boolean(getParentUnion(person.id));
   const hasRelationship = spouseCount > 0 || childCount > 0;
   const relationshipParts = [
     childCount > 0 ? `${childCount} anak` : null,
@@ -202,18 +199,6 @@ const PersonCard = ({ person }) => {
                       <span className="relation-menu-dot bg-indigo-500" />
                       Tambah anak
                     </button>
-                    {bloodRelativeIds.has(person.id) && hasParentUnion && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onMouseDown={(event) => event.stopPropagation()}
-                        onClick={(event) => openRelationship(event, handleAddParentClick)}
-                        className="relation-menu-item"
-                      >
-                        <span className="relation-menu-dot bg-amber-500" />
-                        Tambah orang tua
-                      </button>
-                    )}
                   </div>
                 )}
               </>

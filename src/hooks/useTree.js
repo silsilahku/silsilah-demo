@@ -59,11 +59,9 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
   const [isMemberIndexOpen, setIsMemberIndexOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isSelectSpouseModalOpen, setIsSelectSpouseModalOpen] = useState(false);
-  const [isSelectParentModalOpen, setIsSelectParentModalOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [spouseOptions, setSpouseOptions] = useState([]);
   const [pendingChildParentId, setPendingChildParentId] = useState(null);
-  const [pendingParentTargetId, setPendingParentTargetId] = useState(null);
 
   const genMap = useMemo(
     () => calculateGenerations(people, unions),
@@ -540,102 +538,6 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     }
   }, [people, unions, layoutDirection, getSpouses, createChildForUnion, hiddenPersonIds]);
 
-  const handleAddParentClick = useCallback((targetPersonId) => {
-    setPendingParentTargetId(targetPersonId);
-    setIsSelectParentModalOpen(true);
-  }, []);
-
-  const createParentForPerson = useCallback((targetPersonId, gender) => {
-    const target = people[targetPersonId];
-    if (!target) return;
-
-    const newParentId = 'p-parent-' + Date.now();
-    const titlePrefix = gender === 'male' ? 'Ayah' : 'Ibu';
-    const targetShortName = target.nickname || target.name.split(' ')[0];
-    const parentName = `${titlePrefix} ${targetShortName}`;
-
-    const isVert = layoutDirection === 'vertical';
-    const parentX = isVert ? target.x : Math.max(20, target.x - (CARD_WIDTH + X_GAP));
-    const parentY = isVert ? Math.max(20, target.y - (CARD_HEIGHT + Y_GAP)) : target.y;
-
-    const newParent = {
-      id: newParentId,
-      name: parentName,
-      nickname: parentName,
-      gender,
-      birthYear: '',
-      deathYear: '',
-      isDeceased: false,
-      domicile: '',
-      bio: '',
-      photo: '',
-      notes: `Orang tua dari ${target.name}`,
-      x: parentX,
-      y: parentY,
-    };
-
-    const existingParentUnion = getParentUnion(targetPersonId);
-    let nextUnions = { ...unions };
-    let unionToSave = null;
-
-    if (existingParentUnion) {
-      let updatedUnion = { ...existingParentUnion };
-      if (gender === 'male') {
-        if (!updatedUnion.partner1Id || (people[updatedUnion.partner1Id] && people[updatedUnion.partner1Id].gender !== 'male')) {
-          if (updatedUnion.partner1Id && !updatedUnion.partner2Id) {
-            updatedUnion.partner2Id = updatedUnion.partner1Id;
-          }
-          updatedUnion.partner1Id = newParentId;
-        } else if (!updatedUnion.partner2Id) {
-          updatedUnion.partner2Id = newParentId;
-        } else {
-          updatedUnion.partner1Id = newParentId;
-        }
-      } else {
-        if (!updatedUnion.partner2Id || (people[updatedUnion.partner2Id] && people[updatedUnion.partner2Id].gender !== 'female')) {
-          if (updatedUnion.partner1Id && people[updatedUnion.partner1Id]?.gender === 'female') {
-            updatedUnion.partner2Id = updatedUnion.partner1Id;
-            updatedUnion.partner1Id = newParentId;
-          } else {
-            updatedUnion.partner2Id = newParentId;
-          }
-        } else if (!updatedUnion.partner1Id) {
-          updatedUnion.partner1Id = newParentId;
-        } else {
-          updatedUnion.partner2Id = newParentId;
-        }
-      }
-      nextUnions[existingParentUnion.id] = updatedUnion;
-      unionToSave = updatedUnion;
-    } else {
-      const newUnionId = 'u-parent-' + Date.now();
-      const newUnion = {
-        id: newUnionId,
-        partner1Id: newParentId,
-        partner2Id: null,
-        childrenIds: [targetPersonId],
-      };
-      nextUnions[newUnionId] = newUnion;
-      unionToSave = newUnion;
-    }
-
-    const nextPeople = { ...people, [newParentId]: newParent };
-
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
-    setUnions(nextUnions);
-    setSelectedId(newParentId);
-    setIsSelectParentModalOpen(false);
-
-    (async () => {
-      try {
-        if (persistRef.current?.savePerson) await persistRef.current.savePerson(newParent);
-        if (persistRef.current?.saveUnion && unionToSave) await persistRef.current.saveUnion(unionToSave);
-      } catch (err) {
-        console.error('Gagal menyimpan orang tua ke Supabase:', err);
-      }
-    })();
-  }, [people, unions, layoutDirection, getParentUnion, hiddenPersonIds]);
-
   const handleDeletePerson = useCallback((personId) => {
     const nextPeople = { ...people };
     delete nextPeople[personId];
@@ -829,7 +731,6 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     setIsMemberIndexOpen(false);
     setIsEditDrawerOpen(false);
     setIsSelectSpouseModalOpen(false);
-    setIsSelectParentModalOpen(false);
   }, []);
 
   const handleUpdatePerson = useCallback((personId, field, value) => {
@@ -879,16 +780,12 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     setIsEditDrawerOpen,
     isSelectSpouseModalOpen,
     setIsSelectSpouseModalOpen,
-    isSelectParentModalOpen,
-    setIsSelectParentModalOpen,
     isResetConfirmOpen,
     setIsResetConfirmOpen,
     spouseOptions,
     setSpouseOptions,
     pendingChildParentId,
     setPendingChildParentId,
-    pendingParentTargetId,
-    setPendingParentTargetId,
     genMap,
     maxGeneration,
     hiddenPersonIds,
@@ -908,8 +805,6 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     handleAddFirstPerson,
     handleAddChildClick,
     createChildForUnion,
-    handleAddParentClick,
-    createParentForPerson,
     handleDeletePerson,
     handleUpdatePerson,
     handleSavePerson,

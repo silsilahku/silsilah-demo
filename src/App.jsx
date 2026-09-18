@@ -10,7 +10,6 @@ import SideDrawer from './components/SideDrawer';
 import SupabaseConfigModal from './components/SupabaseConfigModal';
 import LoginModal from './components/LoginModal';
 import SpouseSelectorModal from './components/SpouseSelectorModal';
-import ParentTypeSelectorModal from './components/ParentTypeSelectorModal';
 import ConfirmResetModal from './components/ConfirmResetModal';
 import ExportImportModal from './components/ExportImportModal';
 import StatisticsModal from './components/StatisticsModal';
@@ -76,23 +75,6 @@ function App() {
       tree.handleAddChildClick(id);
     },
     [supabase.isAdmin, supabase.setIsLoginModalOpen, tree.handleAddChildClick]
-  );
-
-  const handleAddParentClick = useCallback(
-    (id) => {
-      if (!supabase.isAdmin) {
-        supabase.setIsLoginModalOpen(true);
-        return;
-      }
-      tree.setPendingParentTargetId(id);
-      tree.setIsSelectParentModalOpen(true);
-    },
-    [
-      supabase.isAdmin,
-      supabase.setIsLoginModalOpen,
-      tree.setPendingParentTargetId,
-      tree.setIsSelectParentModalOpen,
-    ]
   );
 
   const handleDeletePerson = useCallback(async (id) => {
@@ -342,7 +324,6 @@ function App() {
     handleAddSpouse,
     handleAddFirstPerson,
     handleAddChildClick,
-    handleAddParentClick,
     handleDeletePerson,
     handleSavePerson: tree.handleSavePerson,
     handleResetTree,
@@ -359,7 +340,6 @@ function App() {
         <SupabaseConfigModal />
         <LoginModal />
         <SpouseSelectorModal />
-        <ParentTypeSelectorModal />
         <ConfirmResetModal />
         <ExportImportModal />
         <StatisticsModal />

@@ -27,6 +27,7 @@ const HeaderBar = () => {
     layoutDirection,
     searchQuery,
     people,
+    genMap,
     toggleLayoutDirection,
     setIsResetConfirmOpen,
     setSearchQuery,
@@ -48,6 +49,9 @@ const HeaderBar = () => {
   const memberIndexRef = useRef(null);
   const memberSearchRef = useRef(null);
   const totalFamilyMembers = Object.keys(people || {}).length;
+
+  const generationValues = Object.values(genMap || {}).filter(Number.isFinite);
+  const totalGenerations = generationValues.length > 0 ? Math.max(...generationValues) : 0;
 
   const memberGroups = useMemo(() => {
     const source = searchQuery.trim() ? filteredPeopleList : Object.values(people || {});
@@ -174,7 +178,7 @@ const HeaderBar = () => {
               {totalFamilyMembers} anggota
             </span>
             <p className="truncate text-[10px] text-slate-500">
-              Pohon keluarga · 5 generasi terlihat
+              Pohon keluarga · {totalGenerations} generasi terlihat
             </p>
           </div>
         </div>
