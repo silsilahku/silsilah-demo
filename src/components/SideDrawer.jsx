@@ -377,17 +377,19 @@ const SideDrawer = () => {
                     onChange={(event) => handleUpdatePerson(selectedPerson.id, 'birthYear', event.target.value)}
                   />
                 </div>
-                <div className="inspector-field">
-                  <label htmlFor="person-domicile">Domisili terakhir</label>
+                <label className="deceased-toggle">
                   <input
-                    id="person-domicile"
-                    type="text"
+                    type="checkbox"
+                    id="isDeceased"
                     disabled={!isAdmin}
-                    value={selectedPerson.domicile || ''}
-                    onChange={(event) => handleUpdatePerson(selectedPerson.id, 'domicile', event.target.value)}
-                    placeholder="Kota"
+                    checked={selectedPerson.isDeceased || false}
+                    onChange={(event) => handleUpdatePerson(selectedPerson.id, 'isDeceased', event.target.checked)}
                   />
-                </div>
+                  <span>
+                    <span className="block text-[11px] font-semibold text-slate-700">Status</span>
+                    <span className="mt-0.5 block text-[10px] text-slate-500">Sudah wafat</span>
+                  </span>
+                </label>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -402,19 +404,17 @@ const SideDrawer = () => {
                     onChange={(event) => handleUpdatePerson(selectedPerson.id, 'deathYear', event.target.value)}
                   />
                 </div>
-                <label className="deceased-toggle">
+                <div className="inspector-field">
+                  <label htmlFor="person-domicile">Domisili terakhir</label>
                   <input
-                    type="checkbox"
-                    id="isDeceased"
+                    id="person-domicile"
+                    type="text"
                     disabled={!isAdmin}
-                    checked={selectedPerson.isDeceased || false}
-                    onChange={(event) => handleUpdatePerson(selectedPerson.id, 'isDeceased', event.target.checked)}
+                    value={selectedPerson.domicile || ''}
+                    onChange={(event) => handleUpdatePerson(selectedPerson.id, 'domicile', event.target.value)}
+                    placeholder="Kota"
                   />
-                  <span>
-                    <span className="block text-[11px] font-semibold text-slate-700">Status</span>
-                    <span className="mt-0.5 block text-[10px] text-slate-500">Sudah wafat</span>
-                  </span>
-                </label>
+                </div>
               </div>
 
               <div className="inspector-field">
