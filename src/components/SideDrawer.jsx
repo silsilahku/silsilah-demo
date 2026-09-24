@@ -377,19 +377,22 @@ const SideDrawer = () => {
                     onChange={(event) => handleUpdatePerson(selectedPerson.id, 'birthYear', event.target.value)}
                   />
                 </div>
-                <label className="deceased-toggle">
-                  <input
-                    type="checkbox"
-                    id="isDeceased"
-                    disabled={!isAdmin}
-                    checked={selectedPerson.isDeceased || false}
-                    onChange={(event) => handleUpdatePerson(selectedPerson.id, 'isDeceased', event.target.checked)}
-                  />
-                  <span>
-                    <span className="block text-[11px] font-semibold text-slate-700">Status</span>
-                    <span className="mt-0.5 block text-[10px] text-slate-500">Sudah wafat</span>
-                  </span>
-                </label>
+                <div className="flex flex-col gap-[0.35rem]">
+                  <span className="text-[11px] font-semibold text-slate-600">Wafat</span>
+                  <label className={`deceased-toggle ${!isAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      id="isDeceased"
+                      aria-label="Sudah wafat"
+                      disabled={!isAdmin}
+                      checked={selectedPerson.isDeceased || false}
+                      onChange={(event) => handleUpdatePerson(selectedPerson.id, 'isDeceased', event.target.checked)}
+                    />
+                    <span className="toggle-track" aria-hidden="true">
+                      <span className="toggle-thumb" />
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
