@@ -1,3 +1,5 @@
+alter table if exists public.people add column if not exists religion text;
+
 create table if not exists public.people (
   id text primary key,
   name text not null,
@@ -7,6 +9,7 @@ create table if not exists public.people (
   death_year text,
   is_deceased boolean default false,
   domicile text,
+  religion text,
   bio text,
   photo text,
   notes text,

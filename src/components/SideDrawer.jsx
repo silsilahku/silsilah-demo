@@ -365,6 +365,18 @@ const SideDrawer = () => {
                 </div>
               </fieldset>
 
+              <div className="inspector-field">
+                <label htmlFor="person-religion">Agama</label>
+                <input
+                  id="person-religion"
+                  type="text"
+                  disabled={!isAdmin}
+                  value={selectedPerson.religion || ''}
+                  onChange={(event) => handleUpdatePerson(selectedPerson.id, 'religion', event.target.value)}
+                  placeholder="Contoh: Islam"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="inspector-field">
                   <label htmlFor="person-birth-year">Tahun lahir</label>
