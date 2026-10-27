@@ -396,6 +396,38 @@ export const exportHTML = async (people, unions, layoutDirection = 'horizontal')
   fileDownload(blob, `family-tree-${Date.now()}.html`);
 };
 
+const inlineRemoteStylesheets = async (root) => {
+  const links = Array.from(root.querySelectorAll('link[rel="stylesheet"]'));
+  const replacements = [];
+
+  for (const link of links) {
+    const href = link.getAttribute('href');
+    if (!href) continue;
+
+    try {
+      const response = await fetch(href);
+      if (!response.ok) continue;
+      const cssText = await response.text();
+      const style = document.createElement('style');
+      style.textContent = cssText;
+      style.setAttribute('data-inlined-from', href);
+      link.parentNode.replaceChild(style, link);
+      replacements.push({ style, href });
+    } catch {
+      // CORS or network failure — leave the link as-is; html-to-image will skip it.
+    }
+  }
+
+  return () => {
+    replacements.forEach(({ style, href }) => {
+      const link = document.createElement('link');
+      link.setAttribute('rel', 'stylesheet');
+      link.setAttribute('href', href);
+      style.parentNode.replaceChild(link, style);
+    });
+  };
+};
+
 export const exportImage = async (element, format = 'png') => {
   if (!element) return;
 
@@ -413,6 +445,8 @@ export const exportImage = async (element, format = 'png') => {
       pixelRatio: format === 'png' ? 2 : undefined,
       imagePlaceholder: '',
     };
+
+    const restoreStyles = await inlineRemoteStylesheets(element);
 
     const inlineImages = async (root) => {
       const imgs = root.querySelectorAll('img');
@@ -438,6 +472,7 @@ export const exportImage = async (element, format = 'png') => {
       const svgResponse = await fetch(svgDataUrl);
       if (!svgResponse.ok) {
         restore();
+        restoreStyles();
         throw new Error('Gagal membaca hasil SVG.');
       }
       blob = await svgResponse.blob();
@@ -445,10 +480,13 @@ export const exportImage = async (element, format = 'png') => {
     } else {
       blob = await toBlob(element, options);
       if (!blob) {
+        restore();
+        restoreStyles();
         throw new Error('Gagal membuat gambar. Coba kurangi ukuran pohon atau nonaktifkan foto.');
       }
       restore();
     }
+    restoreStyles();
 
     if (blob.size === 0) {
       throw new Error('Hasil export kosong. Coba perbesar area ekspor atau kurangi jumlah anggota.');
