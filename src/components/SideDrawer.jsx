@@ -48,11 +48,15 @@ const SideDrawer = () => {
     selectedPerson,
     isAdmin,
     isUploadingPhoto,
+    uploadPhotoForPerson,
     uploadPhoto,
     removePhoto,
     handleUpdatePerson,
     handleDeletePerson,
     handleSavePerson,
+    pendingChildRequest,
+    cancelAddChild,
+    saveNewMember,
     supabaseClient,
     getFather,
     getMother,
@@ -70,7 +74,56 @@ const SideDrawer = () => {
   const [isFamilySummaryOpen, setIsFamilySummaryOpen] = useState(true);
   const [isPhotoZoomOpen, setIsPhotoZoomOpen] = useState(false);
   const [photoDragY, setPhotoDragY] = useState(0);
+  const [newMemberDraft, setNewMemberDraft] = useState({
+    nickname: '', name: '', gender: 'male', religion: '', birthYear: '',
+    isDeceased: false, deathYear: '', domicile: '', bio: '', notes: '',
+  });
+  const [newMemberPhoto, setNewMemberPhoto] = useState(null);
+  const [newMemberPhotoPreview, setNewMemberPhotoPreview] = useState('');
+  const [isSavingNewMember, setIsSavingNewMember] = useState(false);
+  const [newMemberError, setNewMemberError] = useState('');
   const photoTouchStartY = useRef(0);
+  const newMemberPhotoPreviewRef = useRef(null);
+
+  useEffect(() => {
+    if (!pendingChildRequest) return;
+    setNewMemberDraft({
+      nickname: '',
+      name: '',
+      gender: pendingChildRequest.gender || 'male',
+      religion: '',
+      birthYear: '',
+      isDeceased: false,
+      deathYear: '',
+      domicile: '',
+      bio: '',
+      notes: '',
+    });
+    setNewMemberError('');
+    setNewMemberPhoto(null);
+    if (newMemberPhotoPreviewRef.current) URL.revokeObjectURL(newMemberPhotoPreviewRef.current);
+    newMemberPhotoPreviewRef.current = null;
+    setNewMemberPhotoPreview('');
+    setIsSavingNewMember(false);
+  }, [pendingChildRequest]);
+
+  useEffect(() => () => {
+    if (newMemberPhotoPreviewRef.current) URL.revokeObjectURL(newMemberPhotoPreviewRef.current);
+  }, []);
+
+  const onNewMemberPhotoChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    if (newMemberPhotoPreviewRef.current) URL.revokeObjectURL(newMemberPhotoPreviewRef.current);
+    const previewUrl = file ? URL.createObjectURL(file) : '';
+    newMemberPhotoPreviewRef.current = previewUrl || null;
+    setNewMemberPhoto(file);
+    setNewMemberPhotoPreview(previewUrl);
+  };
+
+  const updateNewMemberField = (field, value) => {
+    setNewMemberDraft((draft) => ({ ...draft, [field]: value }));
+    if (field === 'nickname') setNewMemberError('');
+  };
 
   useEffect(() => {
     if (!isPhotoZoomOpen) return undefined;
@@ -133,7 +186,151 @@ const SideDrawer = () => {
     });
   };
 
-  if (!isEditDrawerOpen || !selectedPerson) return null;
+  if (!isEditDrawerOpen) return null;
+
+  if (pendingChildRequest) {
+    const isAddingSpouse = pendingChildRequest.type === 'spouse';
+    const relatedPersonId = pendingChildRequest.parent1Id || pendingChildRequest.targetPersonId;
+    const relatedPersonName = getPersonName(ctx.people?.[relatedPersonId]);
+    const submitNewChild = async () => {
+      if (!newMemberDraft.nickname.trim()) {
+        setNewMemberError('Nama panggilan wajib diisi.');
+        return;
+      }
+      setIsSavingNewMember(true);
+      const saved = saveNewMember(newMemberDraft, { keepDrawerOpen: Boolean(newMemberPhoto) });
+      if (!saved) {
+        setNewMemberError('Anggota belum dapat disimpan. Coba periksa nama panggilan.');
+        setIsSavingNewMember(false);
+        return;
+      }
+      if (newMemberPhoto) {
+        await uploadPhotoForPerson(newMemberPhoto, saved.person);
+        cancelAddChild();
+      }
+      setIsSavingNewMember(false);
+    };
+
+    return (
+      <>
+        <button type="button" className="inspector-scrim" onClick={cancelAddChild} aria-label="Tutup formulir anggota" />
+        <aside className="side-drawer" aria-labelledby="new-member-title" role="dialog" aria-modal="true">
+          <div className="inspector-header">
+            <div>
+              <p className="section-eyebrow">Anggota keluarga baru</p>
+              <h2 id="new-member-title" className="mt-1 text-sm font-bold text-slate-800">{isAddingSpouse ? 'Tambah pasangan' : 'Tambah anak'}</h2>
+            </div>
+            <button type="button" onClick={cancelAddChild} className="icon-button" aria-label="Tutup formulir">
+              <Icon><path d="m6 6 12 12M18 6 6 18" /></Icon>
+            </button>
+          </div>
+          <div className="inspector-scroll">
+            <p className="mb-4 text-xs text-slate-500">{isAddingSpouse ? `Pasangan dari ${relatedPersonName}.` : `Anak dari ${relatedPersonName}.`} Isi nama secara manual sebelum menambahkannya ke pohon.</p>
+            <div className="space-y-4">
+              <div className="inspector-identity">
+                <div className="inspector-avatar" aria-label="Pratinjau foto profil">
+                  {newMemberPhotoPreview
+                    ? <img src={newMemberPhotoPreview} alt="Pratinjau foto anggota baru" className="h-full w-full rounded-2xl object-cover" />
+                    : <span>{newMemberDraft.nickname.trim().charAt(0).toUpperCase() || '?'}</span>}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-base font-bold text-slate-800">{newMemberDraft.nickname || 'Anggota baru'}</h3>
+                  {newMemberDraft.name && <p className="truncate text-xs text-slate-500">{newMemberDraft.name}</p>}
+                </div>
+              </div>
+              <div className="inspector-photo-tools">
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-700">Foto profil</p>
+                  <p className="mt-0.5 text-[10px] text-slate-400">Pilih foto anggota (opsional).</p>
+                </div>
+                <input
+                  id="new-member-photo"
+                  type="file"
+                  accept="image/*"
+                  disabled={!supabaseClient || isUploadingPhoto}
+                  onChange={onNewMemberPhotoChange}
+                  className="inspector-file-input"
+                  aria-label="Pilih foto profil"
+                />
+                {newMemberPhoto && <p className="text-[10px] text-slate-500">{newMemberPhoto.name}</p>}
+                {!supabaseClient && <p className="text-[10px] text-slate-400">Hubungkan Supabase untuk mengunggah foto.</p>}
+              </div>
+              <div className="inspector-field">
+                <label htmlFor="new-member-nickname">Nama panggilan <span className="text-rose-600">*</span></label>
+                <input
+                  id="new-member-nickname"
+                  type="text"
+                  autoFocus
+                  value={newMemberDraft.nickname}
+                  onChange={(event) => updateNewMemberField('nickname', event.target.value)}
+                  placeholder="Masukkan nama panggilan"
+                  aria-required="true"
+                  aria-invalid={Boolean(newMemberError)}
+                />
+              </div>
+              <div className="inspector-field">
+                <label htmlFor="new-member-name">Nama lengkap</label>
+                <input
+                  id="new-member-name"
+                  type="text"
+                  value={newMemberDraft.name}
+                  onChange={(event) => updateNewMemberField('name', event.target.value)}
+                  placeholder="Masukkan nama lengkap (opsional)"
+                />
+              </div>
+              <fieldset className="inspector-field">
+                <legend>Jenis kelamin</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => updateNewMemberField('gender', 'male')} className={`gender-choice ${newMemberDraft.gender === 'male' ? 'gender-choice-male-selected' : ''}`}>Laki-laki</button>
+                  <button type="button" onClick={() => updateNewMemberField('gender', 'female')} className={`gender-choice ${newMemberDraft.gender === 'female' ? 'gender-choice-female-selected' : ''}`}>Perempuan</button>
+                </div>
+              </fieldset>
+              <div className="inspector-field">
+                <label htmlFor="new-member-religion">Agama</label>
+                <input id="new-member-religion" type="text" value={newMemberDraft.religion} onChange={(event) => updateNewMemberField('religion', event.target.value)} placeholder="Contoh: Islam" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="inspector-field">
+                  <label htmlFor="new-member-birth-year">Tahun lahir</label>
+                  <input id="new-member-birth-year" type="text" value={newMemberDraft.birthYear} onChange={(event) => updateNewMemberField('birthYear', event.target.value)} placeholder="1990" />
+                </div>
+                <div className="inspector-field">
+                  <label htmlFor="new-member-death-year">Tahun wafat</label>
+                  <input id="new-member-death-year" type="text" value={newMemberDraft.deathYear} onChange={(event) => updateNewMemberField('deathYear', event.target.value)} placeholder="Opsional" disabled={!newMemberDraft.isDeceased} />
+                </div>
+              </div>
+              <label className="deceased-toggle cursor-pointer">
+                <span className="text-[11px] font-semibold text-slate-600">Sudah wafat</span>
+                <input type="checkbox" checked={newMemberDraft.isDeceased} onChange={(event) => updateNewMemberField('isDeceased', event.target.checked)} aria-label="Sudah wafat" />
+                <span className="toggle-track" aria-hidden="true"><span className="toggle-thumb" /></span>
+              </label>
+              <div className="inspector-field">
+                <label htmlFor="new-member-domicile">Domisili terakhir</label>
+                <input id="new-member-domicile" type="text" value={newMemberDraft.domicile} onChange={(event) => updateNewMemberField('domicile', event.target.value)} placeholder="Kota" />
+              </div>
+              <div className="inspector-field">
+                <label htmlFor="new-member-bio">Biografi ringkas / link sosial media</label>
+                <textarea id="new-member-bio" rows={2} value={newMemberDraft.bio} onChange={(event) => updateNewMemberField('bio', event.target.value)} placeholder="Pekerjaan, hobi, atau tautan sosial media" />
+              </div>
+              <div className="inspector-field">
+                <label htmlFor="new-member-notes">Catatan tambahan</label>
+                <textarea id="new-member-notes" rows={2} value={newMemberDraft.notes} onChange={(event) => updateNewMemberField('notes', event.target.value)} placeholder="Catatan keluarga" />
+              </div>
+              {newMemberError && <p className="text-xs font-medium text-rose-600" role="alert">{newMemberError}</p>}
+            </div>
+          </div>
+          <footer className="inspector-footer">
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={cancelAddChild} className="secondary-button">Batal</button>
+              <button type="button" onClick={submitNewChild} disabled={!newMemberDraft.nickname.trim() || isSavingNewMember || isUploadingPhoto} className="primary-button disabled:cursor-not-allowed disabled:opacity-50">{isUploadingPhoto ? 'Mengunggah foto...' : isSavingNewMember ? 'Menyimpan...' : 'Simpan'}</button>
+            </div>
+          </footer>
+        </aside>
+      </>
+    );
+  }
+
+  if (!selectedPerson) return null;
 
   const father = getFather(selectedPerson.id);
   const mother = getMother(selectedPerson.id);

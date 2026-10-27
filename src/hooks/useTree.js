@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { autoArrangeTree } from '../utils/layout-engine';
 import { calculateGenerations } from '../utils/generations';
-import { CARD_WIDTH, CARD_HEIGHT, X_GAP, Y_GAP, MIN_GAP_CROSS } from '../utils/constants';
+import { CARD_WIDTH, CARD_HEIGHT } from '../utils/constants';
 import { sortChildrenByBirthDate } from '../utils/child-sort';
 
 // Module-level helper so it can also be called synchronously from
@@ -47,6 +47,8 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
   const [collapsedUnions, setCollapsedUnions] = useState(new Set());
   const [isHighlightEnabled, setIsHighlightEnabled] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [highlightedPersonId, setHighlightedPersonId] = useState(null);
+  const highlightTimerRef = useRef(null);
   const [transform, setTransform] = useState({ x: 80, y: 60, scale: 0.85 });
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -62,6 +64,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [spouseOptions, setSpouseOptions] = useState([]);
   const [pendingChildParentId, setPendingChildParentId] = useState(null);
+  const [pendingChildRequest, setPendingChildRequest] = useState(null);
 
   const genMap = useMemo(
     () => calculateGenerations(people, unions),
@@ -206,6 +209,16 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
 
   const selectedPerson = selectedId ? people[selectedId] : null;
 
+  const highlightMember = useCallback((personId) => {
+    if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+    setHighlightedPersonId(null);
+    window.requestAnimationFrame(() => setHighlightedPersonId(personId));
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightedPersonId(null);
+      highlightTimerRef.current = null;
+    }, 3500);
+  }, []);
+
   const filteredPeopleList = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     if (!normalizedQuery) return [];
@@ -339,18 +352,38 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
   const handleAddSpouse = useCallback((targetPersonId) => {
     const target = people[targetPersonId];
     if (!target) return;
+    setPendingChildRequest({
+      type: 'spouse',
+      targetPersonId,
+      gender: target.gender === 'male' ? 'female' : 'male',
+      key: Date.now(),
+    });
+    setIsEditDrawerOpen(true);
+  }, [people]);
 
-    const newPersonId = 'p-' + Date.now();
-    const defaultGender = target.gender === 'male' ? 'female' : 'male';
-    const existingSpousesCount = getSpouses(targetPersonId).length;
-    const spouseTitle = `Pasangan ${target.nickname || target.name.split(' ')[0]} ${existingSpousesCount > 0 ? (existingSpousesCount + 1) : ''}`.trim();
+  const handleAddParent = useCallback((targetPersonId) => {
+    const target = people[targetPersonId];
+    if (!target) return;
 
-    const isVert = layoutDirection === 'vertical';
-    const newPerson = {
-      id: newPersonId,
-      name: spouseTitle,
-      nickname: spouseTitle,
-      gender: defaultGender,
+    // Validasi: hanya root laki-laki yang belum punya orang tua
+    if (target.gender !== 'male') return;
+    const existingParentUnion = getParentUnion(targetPersonId);
+    if (existingParentUnion) return;
+
+    const timestamp = Date.now();
+    const fatherId = 'p-father-' + timestamp;
+    const motherId = 'p-mother-' + timestamp + '-1';
+    const newUnionId = 'u-parent-' + timestamp;
+
+    const targetName = target.nickname || target.name || 'Target';
+    const fatherName = `Ayah dari ${targetName}`;
+    const motherName = `Ibu dari ${targetName}`;
+
+    const father = {
+      id: fatherId,
+      name: fatherName,
+      nickname: fatherName,
+      gender: 'male',
       religion: '',
       birthYear: '',
       deathYear: '',
@@ -359,101 +392,215 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
       bio: '',
       photo: '',
       notes: '',
-      x: isVert ? target.x + (CARD_WIDTH + MIN_GAP_CROSS) * (existingSpousesCount + 1) : target.x,
-      y: isVert ? target.y : target.y + (CARD_HEIGHT + MIN_GAP_CROSS) * (existingSpousesCount + 1),
+      x: target.x,
+      y: target.y - 200,
     };
 
-    const newUnionId = 'u-' + Date.now();
-    const newUnion = {
-      id: newUnionId,
-      partner1Id: targetPersonId,
-      partner2Id: newPersonId,
-      childrenIds: [],
-    };
-
-    const nextPeople = { ...people, [newPersonId]: newPerson };
-    const nextUnions = { ...unions, [newUnionId]: newUnion };
-
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
-    setUnions(nextUnions);
-    setSelectedId(newPersonId);
-
-    (async () => {
-      try {
-        if (persistRef.current?.savePerson) {
-          const ok = await persistRef.current.savePerson(newPerson);
-          if (!ok) console.error('Gagal menyimpan pasangan ke Supabase: savePerson gagal (periksa koneksi/RLS).');
-        }
-        if (persistRef.current?.saveUnion) {
-          const ok = await persistRef.current.saveUnion(newUnion);
-          if (!ok) console.error('Gagal menyimpan union ke Supabase: saveUnion gagal (periksa koneksi/RLS).');
-        }
-      } catch (err) {
-        console.error('Gagal menyimpan pasangan ke Supabase:', err);
-      }
-    })();
-  }, [people, unions, layoutDirection, getSpouses, hiddenPersonIds]);
-
-  const createChildForUnion = useCallback((unionId, parent1Id, partnerPerson) => {
-    const parent1 = people[parent1Id];
-    const partnerName = partnerPerson ? partnerPerson.name : '';
-    const childId = 'p-child-' + Date.now();
-    const childName = partnerName
-      ? `Anak ${parent1.name.split(' ')[0]} & ${partnerName.split(' ')[0]}`
-      : `Anak ${parent1.name.split(' ')[0]}`;
-
-    const isVert = layoutDirection === 'vertical';
-    const newChild = {
-      id: childId,
-      name: childName,
-      gender: 'male',
+    const mother = {
+      id: motherId,
+      name: motherName,
+      nickname: motherName,
+      gender: 'female',
       religion: '',
       birthYear: '',
       deathYear: '',
       isDeceased: false,
+      domicile: '',
+      bio: '',
       photo: '',
       notes: '',
-      x: isVert ? parent1.x : parent1.x + CARD_WIDTH + X_GAP,
-      y: isVert ? parent1.y + CARD_HEIGHT + Y_GAP : parent1.y,
+      x: target.x,
+      y: target.y - 200,
     };
 
-    const nextPeople = { ...people, [childId]: newChild };
-    
-    // Insert child in correct position based on birth year (oldest first)
-    const currentChildrenIds = unions[unionId].childrenIds || [];
-    const sortedChildrenIds = sortChildrenByBirthDate(
-      [...currentChildrenIds, childId],
-      nextPeople
-    );
-    
-    const nextUnions = {
-      ...unions,
-      [unionId]: {
-        ...unions[unionId],
-        childrenIds: sortedChildrenIds,
-      },
+    const parentUnion = {
+      id: newUnionId,
+      partner1Id: fatherId,
+      partner2Id: motherId,
+      childrenIds: [targetPersonId],
     };
 
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
+    const nextPeople = { ...people, [fatherId]: father, [motherId]: mother };
+    const nextUnions = { ...unions, [newUnionId]: parentUnion };
+
+    // Use the same full-tree layout used after a reload. Excluding collapsed
+    // descendants here leaves their stored coordinates stale and can place
+    // the new parent couple far from the target until the next arrange.
+    const laidOut = autoArrangeTree(nextPeople, nextUnions, layoutDirection);
     setUnions(nextUnions);
-    setSelectedId(childId);
-    setIsSelectSpouseModalOpen(false);
+    setPeople(laidOut);
 
     (async () => {
       try {
         if (persistRef.current?.savePerson) {
-          const ok1 = await persistRef.current.savePerson(newChild);
-          if (!ok1) console.error('Gagal menyimpan anak ke Supabase.');
+          const ok1 = await persistRef.current.savePerson(laidOut[fatherId]);
+          if (!ok1) console.error('Gagal menyimpan ayah ke Supabase: savePerson gagal.');
+          const ok2 = await persistRef.current.savePerson(laidOut[motherId]);
+          if (!ok2) console.error('Gagal menyimpan ibu ke Supabase: savePerson gagal.');
         }
         if (persistRef.current?.saveUnion) {
-          const ok2 = await persistRef.current.saveUnion(nextUnions[unionId]);
-          if (!ok2) console.error('Gagal menyimpan union ke Supabase.');
+          const ok3 = await persistRef.current.saveUnion(parentUnion);
+          if (!ok3) console.error('Gagal menyimpan union orang tua ke Supabase: saveUnion gagal.');
+        }
+      } catch (err) {
+        console.error('Gagal menyimpan orang tua ke Supabase:', err);
+      }
+    })();
+  }, [people, unions, layoutDirection, getParentUnion]);
+
+  const createChildForUnion = useCallback((unionId, parent1Id, partnerPerson) => {
+    setPendingChildRequest({ unionId, parent1Id, partnerPerson, key: Date.now() });
+    setIsSelectSpouseModalOpen(false);
+    setIsEditDrawerOpen(true);
+  }, []);
+
+  const cancelAddChild = useCallback(() => {
+    setPendingChildRequest(null);
+    setIsEditDrawerOpen(false);
+  }, []);
+
+  const saveNewMember = useCallback(({ nickname, name, gender, religion, birthYear, isDeceased, deathYear, domicile, bio, notes }, { keepDrawerOpen = false } = {}) => {
+    const request = pendingChildRequest;
+    const childNickname = nickname.trim();
+    if (!request || !childNickname) return false;
+
+    if (request.type === 'spouse') {
+      const target = people[request.targetPersonId];
+      if (!target) return false;
+      const personId = 'p-spouse-' + Date.now();
+      const newPerson = {
+        id: personId,
+        name: name.trim(),
+        nickname: childNickname,
+        gender: gender || request.gender,
+        religion: religion.trim(),
+        birthYear: birthYear.trim(),
+        deathYear: deathYear.trim(),
+        isDeceased: Boolean(isDeceased),
+        domicile: domicile.trim(),
+        bio: bio.trim(),
+        photo: '',
+        notes: notes.trim(),
+        x: target.x,
+        y: target.y,
+      };
+      const unionToSave = {
+        id: 'u-' + Date.now(),
+        partner1Id: request.targetPersonId,
+        partner2Id: personId,
+        childrenIds: [],
+      };
+      const nextPeople = { ...people, [personId]: newPerson };
+      const nextUnions = { ...unions, [unionToSave.id]: unionToSave };
+      const laidOutPeople = autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds);
+      setPeople(laidOutPeople);
+      setUnions(nextUnions);
+      setSelectedId(personId);
+      if (!keepDrawerOpen) {
+        setIsEditDrawerOpen(false);
+        setPendingChildRequest(null);
+      }
+      (async () => {
+        try {
+          if (persistRef.current?.savePerson) {
+            const ok = await persistRef.current.savePerson({ ...newPerson, ...laidOutPeople[personId] });
+            if (!ok) console.error('Gagal menyimpan pasangan ke Supabase.');
+          }
+          if (persistRef.current?.saveUnion) {
+            const ok = await persistRef.current.saveUnion(unionToSave);
+            if (!ok) console.error('Gagal menyimpan union pasangan ke Supabase.');
+          }
+        } catch (err) {
+          console.error('Gagal menyimpan pasangan ke Supabase:', err);
+        }
+      })();
+      return { id: personId, person: laidOutPeople[personId] };
+    }
+
+    const parent1 = people[request.parent1Id];
+    if (!parent1) return false;
+
+    const childId = 'p-child-' + Date.now();
+    const newChild = {
+      id: childId,
+      name: name.trim(),
+      nickname: childNickname,
+      gender: gender || 'male',
+      religion: religion.trim(),
+      birthYear: birthYear.trim(),
+      deathYear: deathYear.trim(),
+      isDeceased: Boolean(isDeceased),
+      domicile: domicile.trim(),
+      bio: bio.trim(),
+      photo: '',
+      notes: notes.trim(),
+      x: parent1.x,
+      y: parent1.y,
+    };
+
+    let nextPeople = { ...people, [childId]: newChild };
+    let nextUnions = { ...unions };
+    let unionToSave;
+    let partnerToSave = null;
+
+    if (request.unionId && nextUnions[request.unionId]) {
+      const currentChildrenIds = nextUnions[request.unionId].childrenIds || [];
+      const childrenIds = sortChildrenByBirthDate([...currentChildrenIds, childId], nextPeople);
+      unionToSave = { ...nextUnions[request.unionId], childrenIds };
+      nextUnions[request.unionId] = unionToSave;
+    } else {
+      const partnerId = 'p-spouse-' + Date.now();
+      const partnerName = `Pasangan ${parent1.nickname || parent1.name}`;
+      const partner = {
+        id: partnerId,
+        name: partnerName,
+        nickname: partnerName,
+        gender: parent1.gender === 'male' ? 'female' : 'male',
+        religion: '',
+        birthYear: '',
+        deathYear: '',
+        isDeceased: false,
+        domicile: '',
+        bio: '',
+        photo: '',
+        notes: `Pasangan dari ${parent1.name}`,
+        x: parent1.x,
+        y: parent1.y,
+      };
+      partnerToSave = partner;
+      nextPeople[partnerId] = partner;
+      const unionId = 'u-' + Date.now();
+      unionToSave = { id: unionId, partner1Id: request.parent1Id, partner2Id: partnerId, childrenIds: [childId] };
+      nextUnions[unionId] = unionToSave;
+    }
+
+    const laidOutPeople = autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds);
+    setPeople(laidOutPeople);
+    setUnions(nextUnions);
+    setSelectedId(childId);
+    if (!keepDrawerOpen) {
+      setIsEditDrawerOpen(false);
+      setPendingChildRequest(null);
+    }
+
+    (async () => {
+      try {
+        if (persistRef.current?.savePerson) {
+          if (partnerToSave) await persistRef.current.savePerson({ ...partnerToSave, ...laidOutPeople[partnerToSave.id] });
+          const savedPerson = { ...newChild, ...laidOutPeople[childId] };
+          const ok = await persistRef.current.savePerson(savedPerson);
+          if (!ok) console.error('Gagal menyimpan anak ke Supabase.');
+        }
+        if (persistRef.current?.saveUnion) {
+          const ok = await persistRef.current.saveUnion(unionToSave);
+          if (!ok) console.error('Gagal menyimpan union ke Supabase.');
         }
       } catch (err) {
         console.error('Gagal menyimpan anak ke Supabase:', err);
       }
     })();
-  }, [people, unions, layoutDirection, hiddenPersonIds]);
+    return { id: childId, person: laidOutPeople[childId] };
+  }, [pendingChildRequest, people, unions, layoutDirection, hiddenPersonIds]);
 
   const handleAddChildClick = useCallback((targetPersonId) => {
     const target = people[targetPersonId];
@@ -462,78 +609,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     const spouses = getSpouses(targetPersonId);
 
     if (spouses.length === 0) {
-      const dummySpouseId = 'p-spouse-' + Date.now();
-      const spouseTitle = `Pasangan ${target.nickname || target.name.split(' ')[0]}`;
-      const isVert = layoutDirection === 'vertical';
-
-      const dummySpouse = {
-        id: dummySpouseId,
-        name: spouseTitle,
-        nickname: spouseTitle,
-        gender: target.gender === 'male' ? 'female' : 'male',
-        religion: '',
-        birthYear: '',
-        deathYear: '',
-        isDeceased: false,
-        domicile: '',
-        bio: '',
-        photo: '',
-        notes: `Pasangan dari ${target.name}`,
-        x: isVert ? target.x + CARD_WIDTH + MIN_GAP_CROSS : target.x,
-        y: isVert ? target.y : target.y + CARD_HEIGHT + MIN_GAP_CROSS,
-      };
-
-      const newUnionId = 'u-' + Date.now();
-      const childId = 'p-child-' + Date.now();
-      const childTitle = `Anak ${target.nickname || target.name.split(' ')[0]}`;
-
-      const newChild = {
-        id: childId,
-        name: childTitle,
-        nickname: childTitle,
-        gender: 'male',
-        religion: '',
-        birthYear: '',
-        deathYear: '',
-        isDeceased: false,
-        photo: '',
-        notes: '',
-        x: isVert ? target.x : target.x + CARD_WIDTH + X_GAP,
-        y: isVert ? target.y + CARD_HEIGHT + Y_GAP : target.y,
-      };
-
-      const newUnion = {
-        id: newUnionId,
-        partner1Id: targetPersonId,
-        partner2Id: dummySpouseId,
-        childrenIds: [childId],
-      };
-
-      const nextPeople = { ...people, [dummySpouseId]: dummySpouse, [childId]: newChild };
-      const nextUnions = { ...unions, [newUnionId]: newUnion };
-
-      setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
-      setUnions(nextUnions);
-      setSelectedId(childId);
-
-      (async () => {
-        try {
-          if (persistRef.current?.savePerson) {
-            const ok1 = await persistRef.current.savePerson(dummySpouse);
-            if (!ok1) console.error('Gagal menyimpan pasangan dummy ke Supabase.');
-          }
-          if (persistRef.current?.savePerson) {
-            const ok2 = await persistRef.current.savePerson(newChild);
-            if (!ok2) console.error('Gagal menyimpan anak ke Supabase.');
-          }
-          if (persistRef.current?.saveUnion) {
-            const ok3 = await persistRef.current.saveUnion(newUnion);
-            if (!ok3) console.error('Gagal menyimpan union ke Supabase.');
-          }
-        } catch (err) {
-          console.error('Gagal menyimpan anak ke Supabase:', err);
-        }
-      })();
+      createChildForUnion(null, targetPersonId, null);
     } else if (spouses.length === 1) {
       createChildForUnion(spouses[0].unionId, targetPersonId, spouses[0].person);
     } else {
@@ -541,7 +617,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
       setSpouseOptions(spouses);
       setIsSelectSpouseModalOpen(true);
     }
-  }, [people, unions, layoutDirection, getSpouses, createChildForUnion, hiddenPersonIds]);
+  }, [people, getSpouses, createChildForUnion]);
 
   const handleDeletePerson = useCallback((personId) => {
     const nextPeople = { ...people };
@@ -771,6 +847,8 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     setIsHighlightEnabled,
     selectedId,
     setSelectedId,
+    highlightedPersonId,
+    highlightMember,
     selectedPerson,
     transform,
     setTransform,
@@ -790,6 +868,9 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     spouseOptions,
     setSpouseOptions,
     pendingChildParentId,
+    pendingChildRequest,
+    cancelAddChild,
+    saveNewMember,
     setPendingChildParentId,
     genMap,
     maxGeneration,
@@ -807,6 +888,7 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     toggleLayoutDirection,
     toggleCollapseUnion,
     handleAddSpouse,
+    handleAddParent,
     handleAddFirstPerson,
     handleAddChildClick,
     createChildForUnion,

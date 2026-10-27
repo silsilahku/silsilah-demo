@@ -1,13 +1,24 @@
 export const calculateGenerations = (currentPeople, currentUnions) => {
-  // Build child -> parents map from unions.
+  // Build maps
   const childToParentsMap = {};
+  const parentToChildrenMap = {};
   const partnerMap = {};
 
   Object.values(currentUnions).forEach(u => {
-    (u.childrenIds || []).forEach(cId => {
+    const children = u.childrenIds || [];
+    children.forEach(cId => {
       if (!childToParentsMap[cId]) childToParentsMap[cId] = [];
       if (u.partner1Id) childToParentsMap[cId].push(u.partner1Id);
       if (u.partner2Id) childToParentsMap[cId].push(u.partner2Id);
+
+      if (u.partner1Id) {
+        if (!parentToChildrenMap[u.partner1Id]) parentToChildrenMap[u.partner1Id] = new Set();
+        parentToChildrenMap[u.partner1Id].add(cId);
+      }
+      if (u.partner2Id) {
+        if (!parentToChildrenMap[u.partner2Id]) parentToChildrenMap[u.partner2Id] = new Set();
+        parentToChildrenMap[u.partner2Id].add(cId);
+      }
     });
     if (u.partner1Id && u.partner2Id) {
       if (!partnerMap[u.partner1Id]) partnerMap[u.partner1Id] = new Set();
@@ -17,52 +28,122 @@ export const calculateGenerations = (currentPeople, currentUnions) => {
     }
   });
 
-  // Initialize everyone at generation 1 (roots / married-in spouses).
   const genMap = {};
-  Object.keys(currentPeople).forEach(pId => {
+  const personIds = Object.keys(currentPeople || {});
+
+  // Initialize everyone to gen 1
+  personIds.forEach(pId => {
     genMap[pId] = 1;
   });
 
-  // Fixpoint relaxation: order-independent and deterministic, so the result
-  // is identical whether data comes from in-memory state or a fresh DB load.
-  // Rules (values only ever increase, so this converges):
-  //   1. A person is at least one generation below their parents.
-  //   2. Spouses are aligned to the HIGHEST of the two generations, so a
-  //      married-in spouse (gen 1 by descent) is raised to the blood-line
-  //      member's lane instead of dragging the family branch down (the old
-  //      Math.min behavior that caused the Gen 3 -> Gen 1 regression).
-  const personIds = Object.keys(currentPeople);
-  const maxIterations = personIds.length + 2;
-  for (let i = 0; i < maxIterations; i++) {
-    let changed = false;
+  // Find roots (no parents) - these are the top level
+  const roots = personIds.filter(pId => {
+    const parents = childToParentsMap[pId];
+    return !parents || parents.length === 0;
+  });
+  // BFS from roots to propagate down
+  const queue = [];
+  const visited = new Set();
+  roots.forEach(r => {
+    genMap[r] = 1;
+    if (!visited.has(r)) {
+      visited.add(r);
+      queue.push(r);
+    }
+  });
 
-    // Rule 1: children sit below parents.
-    personIds.forEach(pId => {
-      const parents = childToParentsMap[pId] || [];
-      parents.forEach(parId => {
-        if (genMap[parId] === undefined) return;
-        const candidate = genMap[parId] + 1;
-        if (candidate > genMap[pId]) {
-          genMap[pId] = candidate;
-          changed = true;
+  let head = 0;
+  while (head < queue.length) {
+    const current = queue[head++];
+    const currentGen = genMap[current] || 1;
+
+    // Process children
+    const childrenSet = parentToChildrenMap[current];
+    if (childrenSet) {
+      childrenSet.forEach(cId => {
+        if (genMap[cId] === undefined) genMap[cId] = 1;
+        const candidateGen = currentGen + 1;
+        if (candidateGen > genMap[cId]) {
+          genMap[cId] = candidateGen;
+        }
+        // Align spouse of child to child's generation
+        const childPartners = partnerMap[cId];
+        if (childPartners) {
+          childPartners.forEach(sp => {
+            if (genMap[sp] === undefined) genMap[sp] = genMap[cId];
+            if (genMap[cId] > genMap[sp]) {
+              genMap[sp] = genMap[cId];
+            }
+          });
+        }
+        if (!visited.has(cId)) {
+          visited.add(cId);
+          queue.push(cId);
         }
       });
-    });
+    }
 
-    // Rule 2: align couples to the max of the two partners.
+    // Align spouse of current
+    const partners = partnerMap[current];
+    if (partners) {
+      partners.forEach(sp => {
+        if (genMap[sp] === undefined) genMap[sp] = currentGen;
+        if (currentGen > genMap[sp]) {
+          genMap[sp] = currentGen;
+          // If spouse's generation increased, we need to reprocess their subtree
+          if (!visited.has(sp) || genMap[sp] === currentGen) {
+            visited.add(sp);
+            queue.push(sp);
+          }
+        }
+      });
+    }
+  }
+
+  // Ensure all people are in genMap
+  personIds.forEach(pId => {
+    if (genMap[pId] === undefined) genMap[pId] = 1;
+  });
+
+  // Final pass to ensure spouse alignment is consistent
+  let changed = true;
+  let passes = 0;
+  while (changed && passes < 15) {
+    changed = false;
+    passes++;
     personIds.forEach(pId => {
       const partners = partnerMap[pId];
       if (!partners) return;
-      partners.forEach(spId => {
-        if (genMap[spId] === undefined) return;
-        if (genMap[spId] > genMap[pId]) {
-          genMap[pId] = genMap[spId];
-          changed = true;
+      partners.forEach(sp => {
+        const pGen = genMap[pId] || 1;
+        const spGen = genMap[sp] || 1;
+        if (pGen !== spGen) {
+          const maxGen = Math.max(pGen, spGen);
+          if (genMap[pId] !== maxGen) {
+            genMap[pId] = maxGen;
+            changed = true;
+          }
+          if (genMap[sp] !== maxGen) {
+            genMap[sp] = maxGen;
+            changed = true;
+          }
         }
       });
+      // Also ensure children are below parents
+      const parents = childToParentsMap[pId] || [];
+      if (parents.length > 0) {
+        let maxParentGen = 0;
+        parents.forEach(parId => {
+          const parGen = genMap[parId] || 1;
+          if (parGen > maxParentGen) maxParentGen = parGen;
+        });
+        const requiredGen = maxParentGen + 1;
+        if ((genMap[pId] || 1) < requiredGen) {
+          genMap[pId] = requiredGen;
+          changed = true;
+        }
+      }
     });
-
-    if (!changed) break;
   }
 
   return genMap;

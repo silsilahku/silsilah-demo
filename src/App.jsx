@@ -256,6 +256,37 @@ function App() {
     [tree.selectedPerson, tree.setPeople, supabase.supabaseClient, supabase.supabaseBucket, supabase.setIsUploadingPhoto]
   );
 
+  const uploadPhotoForPerson = useCallback(async (file, person) => {
+    if (!file || !person || !supabase.supabaseClient) return false;
+    supabase.setIsUploadingPhoto(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `avatars/${person.id}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.supabaseClient.storage
+        .from(supabase.supabaseBucket)
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.supabaseClient.storage
+        .from(supabase.supabaseBucket)
+        .getPublicUrl(filePath);
+      const updatedPerson = { ...person, photo: publicUrl };
+      const saved = await supabase.savePerson(updatedPerson);
+      if (!saved) throw new Error('Gagal menyimpan URL foto ke data anggota.');
+
+      tree.setPeople((previous) => ({
+        ...previous,
+        [person.id]: { ...previous[person.id], photo: publicUrl },
+      }));
+      return true;
+    } catch (error) {
+      alert('Gagal mengunggah foto: ' + (error.message || error));
+      return false;
+    } finally {
+      supabase.setIsUploadingPhoto(false);
+    }
+  }, [supabase.supabaseClient, supabase.supabaseBucket, supabase.savePerson, supabase.setIsUploadingPhoto, tree.setPeople]);
+
   const removePhoto = useCallback(async () => {
     if (!supabase.isAdmin || !tree.selectedPerson?.photo || !supabase.supabaseClient) return;
 
@@ -305,6 +336,7 @@ function App() {
     supabaseBucket: supabase.supabaseBucket,
     isUploadingPhoto: supabase.isUploadingPhoto,
     uploadPhoto,
+    uploadPhotoForPerson,
     removePhoto,
     isLoginModalOpen: supabase.isLoginModalOpen,
     setIsLoginModalOpen: supabase.setIsLoginModalOpen,
@@ -322,6 +354,7 @@ function App() {
     savePerson: supabase.savePerson,
     saveUnion: supabase.saveUnion,
     handleAddSpouse,
+    handleAddParent: tree.handleAddParent,
     handleAddFirstPerson,
     handleAddChildClick,
     handleDeletePerson,

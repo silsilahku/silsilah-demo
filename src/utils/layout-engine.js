@@ -35,9 +35,19 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
       const unions = getPersonUnions(pId);
       const isSpouseOfRoot = unions.some(u => {
         const spouseId = u.partner1Id === pId ? u.partner2Id : u.partner1Id;
-        return spouseId && rootIds.includes(spouseId);
+        const result = spouseId && rootIds.includes(spouseId);
+        return result;
       });
-      if (!isSpouseOfRoot && !rootIds.includes(pId)) {
+      // A person with no recorded parents is not a separate tree root when
+      // they are married to someone who does have parents. The actual
+      // ancestor branch must be laid out first, otherwise this spouse can
+      // mark the descendant as visited and leave the ancestor couple off to
+      // the side (especially after adding parents to an existing root).
+      const isSpouseOfDescendant = unions.some(u => {
+        const spouseId = u.partner1Id === pId ? u.partner2Id : u.partner1Id;
+        return spouseId && childToUnionMap[spouseId];
+      });
+      if (!isSpouseOfRoot && !isSpouseOfDescendant && !rootIds.includes(pId)) {
         rootIds.push(pId);
       }
     }

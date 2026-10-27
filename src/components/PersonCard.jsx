@@ -59,12 +59,15 @@ const PersonCard = ({ person }) => {
     setIsEditDrawerOpen,
     handleAddSpouse,
     handleAddChildClick,
+    handleAddParent,
     getSpouses,
     getChildren,
+    getParentUnion,
   } = ctx;
   const [isRelationMenuOpen, setIsRelationMenuOpen] = useState(false);
 
   const isSelected = selectedId === person.id;
+  const isHighlighted = ctx.highlightedPersonId === person.id;
   const isMale = person.gender === 'male';
   const displayName = person.nickname || person.name || 'Tanpa Nama';
   const fullName = person.nickname && person.name && person.nickname !== person.name ? person.name : '';
@@ -85,6 +88,8 @@ const PersonCard = ({ person }) => {
     : person.notes || 'Belum ada hubungan';
   const summaryIsNote = !hasRelationship && Boolean(person.notes);
   const contextLabel = `Generasi ${generation} · ${person.isDeceased ? 'wafat' : 'aktif'}`;
+  const parentUnion = getParentUnion ? getParentUnion(person.id) : null;
+  const canAddParent = isAdmin && isMale && !parentUnion;
 
   const selectCard = (event) => {
     event.stopPropagation();
@@ -126,7 +131,7 @@ const PersonCard = ({ person }) => {
           : isMale
             ? 'border-blue-200 hover:border-blue-400'
             : 'border-pink-200 hover:border-pink-400'
-      } ${person.isDeceased ? 'bg-slate-200 text-slate-700' : ''} ${isRelationMenuOpen ? 'z-40' : ''}`}
+      } ${person.isDeceased ? 'bg-slate-200 text-slate-700' : ''} ${isRelationMenuOpen ? 'z-40' : ''} ${isHighlighted ? 'card-node--focus-highlight' : ''}`}
     >
       <div className="card-identity flex h-14 min-w-0 items-center gap-2.5">
         <PersonAvatar
@@ -177,6 +182,19 @@ const PersonCard = ({ person }) => {
                 </button>
                 {isRelationMenuOpen && (
                   <div className="relation-menu absolute bottom-full right-0 z-50 mb-2 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl" role="menu">
+                    {canAddParent && handleAddParent && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={(event) => openRelationship(event, handleAddParent)}
+                        className="relation-menu-item"
+                        title="Hanya bisa untuk root laki-laki tanpa orang tua"
+                      >
+                        <span className="relation-menu-dot bg-slate-500" />
+                        Tambah orang tua
+                      </button>
+                    )}
                     {bloodRelativeIds.has(person.id) && (
                       <button
                         type="button"

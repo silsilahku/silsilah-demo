@@ -32,6 +32,7 @@ const HeaderBar = () => {
     setIsResetConfirmOpen,
     setSearchQuery,
     setSelectedId,
+    highlightMember,
     setTransform,
     setIsLoginModalOpen,
     setIsEditDrawerOpen,
@@ -115,14 +116,17 @@ const HeaderBar = () => {
 
   const selectMember = (person) => {
     setSelectedId(person.id);
+    highlightMember(person.id);
     setIsEditDrawerOpen(false);
-    setTransform((previous) => ({
-      ...previous,
-      x: window.innerWidth / 2 - (person.x + CARD_WIDTH / 2) * previous.scale,
-      y:
-        (window.innerHeight - 64) / 2 -
-        (person.y + CARD_HEIGHT / 2) * previous.scale,
-    }));
+    setTransform((previous) => {
+      const scale = Math.min(2.5, Math.max(1.2, previous.scale));
+      return {
+        ...previous,
+        scale,
+        x: window.innerWidth / 2 - (person.x + CARD_WIDTH / 2) * scale,
+        y: (window.innerHeight - 64) / 2 - (person.y + CARD_HEIGHT / 2) * scale,
+      };
+    });
     setSearchQuery('');
     setIsMemberIndexOpen(false);
     setIsMobileMenuOpen(false);
