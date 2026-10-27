@@ -117,10 +117,12 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
         const spouseId = info.spouseId;
         if (spouseId && updatedPeople[spouseId] && !globalVisited.has(spouseId) && !hiddenSet.has(spouseId)) {
           globalVisited.add(spouseId);
-          const spouseY = info.childrenMidY - CARD_HEIGHT / 2;
-          updatedPeople[spouseId] = { ...updatedPeople[spouseId], x: startX, y: spouseY };
-          overallMinY = Math.min(overallMinY, spouseY);
-          overallMaxY = Math.max(overallMaxY, spouseY + CARD_HEIGHT);
+          if (info.hasChildren) {
+            const spouseY = info.childrenMidY - CARD_HEIGHT / 2;
+            updatedPeople[spouseId] = { ...updatedPeople[spouseId], x: startX, y: spouseY };
+            overallMinY = Math.min(overallMinY, spouseY);
+            overallMaxY = Math.max(overallMaxY, spouseY + CARD_HEIGHT);
+          }
         }
         if (info.hasChildren) {
           overallMinY = Math.min(overallMinY, info.childrenMinY);
@@ -128,11 +130,18 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
         }
       });
 
-      const allMidYs = unionLayouts.map(i => i.childrenMidY);
+      const descendantUnions = unionLayouts.filter(i => i.hasChildren);
+      const allMidYs = (descendantUnions.length ? descendantUnions : unionLayouts).map(i => i.childrenMidY);
       const avgMidY = allMidYs.reduce((a, b) => a + b, 0) / allMidYs.length;
       const primaryY = avgMidY - CARD_HEIGHT / 2;
 
       updatedPeople[personId] = { ...updatedPeople[personId], x: startX, y: primaryY };
+      unionLayouts.forEach(info => {
+        const spouseId = info.spouseId;
+        if (!info.hasChildren && spouseId && updatedPeople[spouseId] && !hiddenSet.has(spouseId)) {
+          updatedPeople[spouseId] = { ...updatedPeople[spouseId], x: startX, y: primaryY };
+        }
+      });
 
       overallMinY = Math.min(overallMinY, primaryY);
       overallMaxY = Math.max(overallMaxY, primaryY + CARD_HEIGHT);
@@ -234,10 +243,12 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
         const spouseId = info.spouseId;
         if (spouseId && updatedPeople[spouseId] && !globalVisited.has(spouseId) && !hiddenSet.has(spouseId)) {
           globalVisited.add(spouseId);
-          const spouseX = info.childrenMidX - CARD_WIDTH / 2;
-          updatedPeople[spouseId] = { ...updatedPeople[spouseId], x: spouseX, y: startY };
-          overallMinX = Math.min(overallMinX, spouseX);
-          overallMaxX = Math.max(overallMaxX, spouseX + CARD_WIDTH);
+          if (info.hasChildren) {
+            const spouseX = info.childrenMidX - CARD_WIDTH / 2;
+            updatedPeople[spouseId] = { ...updatedPeople[spouseId], x: spouseX, y: startY };
+            overallMinX = Math.min(overallMinX, spouseX);
+            overallMaxX = Math.max(overallMaxX, spouseX + CARD_WIDTH);
+          }
         }
         if (info.hasChildren) {
           overallMinX = Math.min(overallMinX, info.childrenMinX);
@@ -245,11 +256,18 @@ export const autoArrangeTree = (currentPeople, currentUnions, direction = 'horiz
         }
       });
 
-      const allMidXs = unionLayouts.map(i => i.childrenMidX);
+      const descendantUnions = unionLayouts.filter(i => i.hasChildren);
+      const allMidXs = (descendantUnions.length ? descendantUnions : unionLayouts).map(i => i.childrenMidX);
       const avgMidX = allMidXs.reduce((a, b) => a + b, 0) / allMidXs.length;
       const primaryX = avgMidX - CARD_WIDTH / 2;
 
       updatedPeople[personId] = { ...updatedPeople[personId], x: primaryX, y: startY };
+      unionLayouts.forEach(info => {
+        const spouseId = info.spouseId;
+        if (!info.hasChildren && spouseId && updatedPeople[spouseId] && !hiddenSet.has(spouseId)) {
+          updatedPeople[spouseId] = { ...updatedPeople[spouseId], x: primaryX, y: startY };
+        }
+      });
 
       overallMinX = Math.min(overallMinX, primaryX);
       overallMaxX = Math.max(overallMaxX, primaryX + CARD_WIDTH);

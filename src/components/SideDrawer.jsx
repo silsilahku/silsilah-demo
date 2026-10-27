@@ -190,6 +190,7 @@ const SideDrawer = () => {
 
   if (pendingChildRequest) {
     const isAddingSpouse = pendingChildRequest.type === 'spouse';
+    const isAddingParent = pendingChildRequest.type === 'parent';
     const relatedPersonId = pendingChildRequest.parent1Id || pendingChildRequest.targetPersonId;
     const relatedPersonName = getPersonName(ctx.people?.[relatedPersonId]);
     const submitNewChild = async () => {
@@ -200,7 +201,7 @@ const SideDrawer = () => {
       setIsSavingNewMember(true);
       const saved = saveNewMember(newMemberDraft, { keepDrawerOpen: Boolean(newMemberPhoto) });
       if (!saved) {
-        setNewMemberError('Anggota belum dapat disimpan. Coba periksa nama panggilan.');
+        setNewMemberError('Anggota belum dapat disimpan. Coba periksa kembali datanya.');
         setIsSavingNewMember(false);
         return;
       }
@@ -218,14 +219,14 @@ const SideDrawer = () => {
           <div className="inspector-header">
             <div>
               <p className="section-eyebrow">Anggota keluarga baru</p>
-              <h2 id="new-member-title" className="mt-1 text-sm font-bold text-slate-800">{isAddingSpouse ? 'Tambah pasangan' : 'Tambah anak'}</h2>
+              <h2 id="new-member-title" className="mt-1 text-sm font-bold text-slate-800">{isAddingSpouse ? 'Tambah pasangan' : isAddingParent ? 'Tambah ayah' : 'Tambah anak'}</h2>
             </div>
             <button type="button" onClick={cancelAddChild} className="icon-button" aria-label="Tutup formulir">
               <Icon><path d="m6 6 12 12M18 6 6 18" /></Icon>
             </button>
           </div>
           <div className="inspector-scroll">
-            <p className="mb-4 text-xs text-slate-500">{isAddingSpouse ? `Pasangan dari ${relatedPersonName}.` : `Anak dari ${relatedPersonName}.`} Isi nama secara manual sebelum menambahkannya ke pohon.</p>
+            <p className="mb-4 text-xs text-slate-500">{isAddingSpouse ? `Pasangan dari ${relatedPersonName}.` : isAddingParent ? `Ayah dari ${relatedPersonName}. Ibu dapat ditambahkan nanti melalui Tambah pasangan.` : `Anak dari ${relatedPersonName}.`} Isi nama secara manual sebelum menambahkannya ke pohon.</p>
             <div className="space-y-4">
               <div className="inspector-identity">
                 <div className="inspector-avatar" aria-label="Pratinjau foto profil">
@@ -278,13 +279,20 @@ const SideDrawer = () => {
                   placeholder="Masukkan nama lengkap (opsional)"
                 />
               </div>
-              <fieldset className="inspector-field">
-                <legend>Jenis kelamin</legend>
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => updateNewMemberField('gender', 'male')} className={`gender-choice ${newMemberDraft.gender === 'male' ? 'gender-choice-male-selected' : ''}`}>Laki-laki</button>
-                  <button type="button" onClick={() => updateNewMemberField('gender', 'female')} className={`gender-choice ${newMemberDraft.gender === 'female' ? 'gender-choice-female-selected' : ''}`}>Perempuan</button>
+              {isAddingParent ? (
+                <div className="inspector-field">
+                  <span className="text-[11px] font-semibold text-slate-600">Jenis kelamin</span>
+                  <p className="mt-1 text-xs text-slate-800">Laki-laki (ayah)</p>
                 </div>
-              </fieldset>
+              ) : (
+                <fieldset className="inspector-field">
+                  <legend>Jenis kelamin</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => updateNewMemberField('gender', 'male')} className={`gender-choice ${newMemberDraft.gender === 'male' ? 'gender-choice-male-selected' : ''}`}>Laki-laki</button>
+                    <button type="button" onClick={() => updateNewMemberField('gender', 'female')} className={`gender-choice ${newMemberDraft.gender === 'female' ? 'gender-choice-female-selected' : ''}`}>Perempuan</button>
+                  </div>
+                </fieldset>
+              )}
               <div className="inspector-field">
                 <label htmlFor="new-member-religion">Agama</label>
                 <input id="new-member-religion" type="text" value={newMemberDraft.religion} onChange={(event) => updateNewMemberField('religion', event.target.value)} placeholder="Contoh: Islam" />

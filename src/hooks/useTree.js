@@ -369,84 +369,9 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     if (target.gender !== 'male') return;
     const existingParentUnion = getParentUnion(targetPersonId);
     if (existingParentUnion) return;
-
-    const timestamp = Date.now();
-    const fatherId = 'p-father-' + timestamp;
-    const motherId = 'p-mother-' + timestamp + '-1';
-    const newUnionId = 'u-parent-' + timestamp;
-
-    const targetName = target.nickname || target.name || 'Target';
-    const fatherName = `Ayah dari ${targetName}`;
-    const motherName = `Ibu dari ${targetName}`;
-
-    const father = {
-      id: fatherId,
-      name: fatherName,
-      nickname: fatherName,
-      gender: 'male',
-      religion: '',
-      birthYear: '',
-      deathYear: '',
-      isDeceased: false,
-      domicile: '',
-      bio: '',
-      photo: '',
-      notes: '',
-      x: target.x,
-      y: target.y - 200,
-    };
-
-    const mother = {
-      id: motherId,
-      name: motherName,
-      nickname: motherName,
-      gender: 'female',
-      religion: '',
-      birthYear: '',
-      deathYear: '',
-      isDeceased: false,
-      domicile: '',
-      bio: '',
-      photo: '',
-      notes: '',
-      x: target.x,
-      y: target.y - 200,
-    };
-
-    const parentUnion = {
-      id: newUnionId,
-      partner1Id: fatherId,
-      partner2Id: motherId,
-      childrenIds: [targetPersonId],
-    };
-
-    const nextPeople = { ...people, [fatherId]: father, [motherId]: mother };
-    const nextUnions = { ...unions, [newUnionId]: parentUnion };
-
-    // Use the same full-tree layout used after a reload. Excluding collapsed
-    // descendants here leaves their stored coordinates stale and can place
-    // the new parent couple far from the target until the next arrange.
-    const laidOut = autoArrangeTree(nextPeople, nextUnions, layoutDirection);
-    setUnions(nextUnions);
-    setPeople(laidOut);
-
-    (async () => {
-      try {
-        if (persistRef.current?.savePerson) {
-          const ok1 = await persistRef.current.savePerson(laidOut[fatherId]);
-          if (!ok1) console.error('Gagal menyimpan ayah ke Supabase: savePerson gagal.');
-          const ok2 = await persistRef.current.savePerson(laidOut[motherId]);
-          if (!ok2) console.error('Gagal menyimpan ibu ke Supabase: savePerson gagal.');
-        }
-        if (persistRef.current?.saveUnion) {
-          const ok3 = await persistRef.current.saveUnion(parentUnion);
-          if (!ok3) console.error('Gagal menyimpan union orang tua ke Supabase: saveUnion gagal.');
-        }
-      } catch (err) {
-        console.error('Gagal menyimpan orang tua ke Supabase:', err);
-      }
-    })();
-  }, [people, unions, layoutDirection, getParentUnion]);
+    setPendingChildRequest({ type: 'parent', targetPersonId, gender: 'male', key: Date.now() });
+    setIsEditDrawerOpen(true);
+  }, [people, getParentUnion]);
 
   const createChildForUnion = useCallback((unionId, parent1Id, partnerPerson) => {
     setPendingChildRequest({ unionId, parent1Id, partnerPerson, key: Date.now() });
@@ -463,6 +388,59 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     const request = pendingChildRequest;
     const childNickname = nickname.trim();
     if (!request || !childNickname) return false;
+
+    if (request.type === 'parent') {
+      const child = people[request.targetPersonId];
+      if (!child) return false;
+      const personId = 'p-father-' + Date.now();
+      const newPerson = {
+        id: personId,
+        name: name.trim(),
+        nickname: childNickname,
+        gender: 'male',
+        religion: religion.trim(),
+        birthYear: birthYear.trim(),
+        deathYear: deathYear.trim(),
+        isDeceased: Boolean(isDeceased),
+        domicile: domicile.trim(),
+        bio: bio.trim(),
+        photo: '',
+        notes: notes.trim(),
+        x: child.x,
+        y: child.y,
+      };
+      const unionToSave = {
+        id: 'u-parent-' + Date.now(),
+        partner1Id: personId,
+        partner2Id: null,
+        childrenIds: [request.targetPersonId],
+      };
+      const nextPeople = { ...people, [personId]: newPerson };
+      const nextUnions = { ...unions, [unionToSave.id]: unionToSave };
+      const laidOutPeople = autoArrangeTree(nextPeople, nextUnions, layoutDirection);
+      setPeople(laidOutPeople);
+      setUnions(nextUnions);
+      setSelectedId(personId);
+      if (!keepDrawerOpen) {
+        setIsEditDrawerOpen(false);
+        setPendingChildRequest(null);
+      }
+      (async () => {
+        try {
+          if (persistRef.current?.savePerson) {
+            const ok = await persistRef.current.savePerson({ ...newPerson, ...laidOutPeople[personId] });
+            if (!ok) console.error('Gagal menyimpan ayah ke Supabase.');
+          }
+          if (persistRef.current?.saveUnion) {
+            const ok = await persistRef.current.saveUnion(unionToSave);
+            if (!ok) console.error('Gagal menyimpan hubungan ayah dan anak ke Supabase.');
+          }
+        } catch (err) {
+          console.error('Gagal menyimpan ayah ke Supabase:', err);
+        }
+      })();
+      return { id: personId, person: laidOutPeople[personId] };
+    }
 
     if (request.type === 'spouse') {
       const target = people[request.targetPersonId];
@@ -484,12 +462,24 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
         x: target.x,
         y: target.y,
       };
-      const unionToSave = {
-        id: 'u-' + Date.now(),
-        partner1Id: request.targetPersonId,
-        partner2Id: personId,
-        childrenIds: [],
-      };
+      const parentUnionToComplete = Object.values(unions).find(union =>
+        (union.childrenIds || []).length > 0 && (
+          (union.partner1Id === request.targetPersonId && !union.partner2Id) ||
+          (union.partner2Id === request.targetPersonId && !union.partner1Id)
+        )
+      );
+      const unionToSave = parentUnionToComplete
+        ? {
+            ...parentUnionToComplete,
+            partner1Id: parentUnionToComplete.partner1Id || personId,
+            partner2Id: parentUnionToComplete.partner2Id || personId,
+          }
+        : {
+            id: 'u-' + Date.now(),
+            partner1Id: request.targetPersonId,
+            partner2Id: personId,
+            childrenIds: [],
+          };
       const nextPeople = { ...people, [personId]: newPerson };
       const nextUnions = { ...unions, [unionToSave.id]: unionToSave };
       const laidOutPeople = autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds);
