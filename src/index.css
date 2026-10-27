@@ -899,7 +899,6 @@
     pointer-events: none;
   }
 
-  .print-overlay .print-tree,
   .export-canvas .print-tree {
     display: block;
     width: max-content;
@@ -1087,12 +1086,12 @@
     visibility: hidden;
   }
 
-  .print-overlay,
-  .print-overlay * {
+  .export-canvas,
+  .export-canvas * {
     visibility: visible;
   }
 
-  .print-overlay {
+  .export-canvas {
     position: absolute;
     left: 0;
     top: 0;

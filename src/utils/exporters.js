@@ -69,6 +69,13 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#039;');
 
+const truncateText = (text, max = 26) => {
+  if (!text) return text;
+  const str = String(text);
+  if (str.length <= max) return str;
+  return `${str.slice(0, max).trimEnd()}...`;
+};
+
 const createHtmlConnections = (people, unions, minX, minY, layoutDirection) => {
   const isVertical = layoutDirection === 'vertical';
   const personUnionsMap = {};
@@ -164,13 +171,30 @@ export const exportHTML = async (people, unions, layoutDirection = 'horizontal')
   const connectionsHtml = createHtmlConnections(people, unions, minX, minY, layoutDirection);
   const peopleHtml = (await Promise.all(validPeople.map(async (p) => {
       const photo = p.photo ? await fetchPhotoBase64(p.photo) : null;
+      const rawName = p.nickname || p.name || 'Tanpa Nama';
+      const displayName = truncateText(rawName, 26);
+      const ageText = (() => {
+        const currentYear = new Date().getFullYear();
+        const birth = parseInt(p.birthYear);
+        if (!isNaN(birth)) {
+          if (p.isDeceased) {
+            const death = parseInt(p.deathYear);
+            if (!isNaN(death) && death - birth >= 0) return `${death - birth} thn (Wafat)`;
+            return 'Wafat';
+          }
+          const age = currentYear - birth;
+          return age >= 0 ? `${age} thn` : '';
+        }
+        if (p.isDeceased) return 'Wafat';
+        return '';
+      })();
       return `
     <div class="person-card" style="left:${p.x - minX}px;top:${p.y - minY}px;">
       <div class="card-header">
-        ${photo ? `<img src="${photo}" alt="${escapeHtml(p.name)}" />` : `<div class="avatar">${escapeHtml((p.nickname || p.name || 'T').charAt(0).toUpperCase())}</div>`}
+        ${photo ? `<img src="${photo}" alt="${escapeHtml(rawName)}" />` : `<div class="avatar">${escapeHtml(rawName.charAt(0).toUpperCase())}</div>`}
         <div>
-          <div class="name">${escapeHtml(p.nickname || p.name || 'Tanpa Nama')}</div>
-          <div class="meta">${escapeHtml(p.birthYear || '')}${p.birthYear && p.deathYear ? ' - ' : ''}${escapeHtml(p.deathYear || '')}${p.isDeceased ? ' (Wafat)' : ''}</div>
+          <div class="name" title="${escapeHtml(rawName)}">${escapeHtml(displayName)}</div>
+          <div class="meta">${escapeHtml(ageText)}</div>
         </div>
       </div>
       ${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ''}

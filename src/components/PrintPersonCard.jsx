@@ -1,5 +1,13 @@
+const truncateText = (text, max = 26) => {
+  if (!text) return text;
+  const str = String(text);
+  if (str.length <= max) return str;
+  return `${str.slice(0, max).trimEnd()}...`;
+};
+
 const PrintPersonCard = ({ person, offset = { x: 0, y: 0 } }) => {
-  const displayName = person.nickname || person.name || 'Tanpa Nama';
+  const rawName = person.nickname || person.name || 'Tanpa Nama';
+  const displayName = truncateText(rawName, 26);
   const isMale = person.gender === 'male';
 
   return (
@@ -17,7 +25,7 @@ const PrintPersonCard = ({ person, offset = { x: 0, y: 0 } }) => {
         {person.photo ? (
           <img
             src={person.photo}
-            alt={displayName}
+            alt={rawName}
             className="w-14 h-14 rounded-full object-cover shrink-0 border border-slate-200"
             onError={(e) => {
               e.target.onerror = null;
@@ -30,11 +38,11 @@ const PrintPersonCard = ({ person, offset = { x: 0, y: 0 } }) => {
               isMale ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
             }`}
           >
-            {displayName.charAt(0).toUpperCase()}
+            {rawName.charAt(0).toUpperCase()}
           </div>
         )}
         <div className="overflow-hidden">
-          <h3 className="font-semibold text-xs text-slate-800 truncate" title={displayName}>
+          <h3 className="font-semibold text-xs text-slate-800 truncate" title={rawName}>
             {displayName}
           </h3>
           {(() => {

@@ -33,8 +33,6 @@ const ExportImportModal = () => {
         await exportJSON(ctx.people, ctx.unions, includePhotos);
       } else if (exportFormat === 'html') {
         await exportHTML(ctx.people, ctx.unions, ctx.layoutDirection);
-      } else if (exportFormat === 'pdf') {
-        window.print();
       } else if (printRef.current) {
         await exportImage(printRef.current, exportFormat);
       }
@@ -139,7 +137,6 @@ const ExportImportModal = () => {
                   <option value="svg">SVG (Vektor)</option>
                   <option value="html">HTML (Buka di browser)</option>
                   <option value="json">JSON (Data)</option>
-                  <option value="pdf">PDF (via Print)</option>
                 </select>
               </div>
 
@@ -223,7 +220,7 @@ const ExportImportModal = () => {
       </div>
 
       {peopleCount > 0 && (
-        <div className={exportFormat === 'pdf' ? 'print-overlay' : 'export-canvas'}>
+        <div className="export-canvas">
           <TreePrintView printRef={printRef} />
         </div>
       )}
