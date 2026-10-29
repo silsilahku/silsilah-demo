@@ -191,6 +191,7 @@ const SideDrawer = () => {
   if (pendingChildRequest) {
     const isAddingSpouse = pendingChildRequest.type === 'spouse';
     const isAddingParent = pendingChildRequest.type === 'parent';
+    const isAddingFirst = pendingChildRequest.type === 'first';
     const relatedPersonId = pendingChildRequest.parent1Id || pendingChildRequest.targetPersonId;
     const relatedPersonName = getPersonName(ctx.people?.[relatedPersonId]);
     const submitNewChild = async () => {
@@ -219,14 +220,14 @@ const SideDrawer = () => {
           <div className="inspector-header">
             <div>
               <p className="section-eyebrow">Anggota keluarga baru</p>
-              <h2 id="new-member-title" className="mt-1 text-sm font-bold text-slate-800">{isAddingSpouse ? 'Tambah pasangan' : isAddingParent ? 'Tambah ayah' : 'Tambah anak'}</h2>
+              <h2 id="new-member-title" className="mt-1 text-sm font-bold text-slate-800">{isAddingSpouse ? 'Tambah pasangan' : isAddingParent ? 'Tambah ayah' : isAddingFirst ? 'Tambah anggota pertama' : 'Tambah anak'}</h2>
             </div>
             <button type="button" onClick={cancelAddChild} className="icon-button" aria-label="Tutup formulir">
               <Icon><path d="m6 6 12 12M18 6 6 18" /></Icon>
             </button>
           </div>
           <div className="inspector-scroll">
-            <p className="mb-4 text-xs text-slate-500">{isAddingSpouse ? `Pasangan dari ${relatedPersonName}.` : isAddingParent ? `Ayah dari ${relatedPersonName}. Ibu dapat ditambahkan nanti melalui Tambah pasangan.` : `Anak dari ${relatedPersonName}.`} Isi nama secara manual sebelum menambahkannya ke pohon.</p>
+            <p className="mb-4 text-xs text-slate-500">{isAddingSpouse ? `Pasangan dari ${relatedPersonName}.` : isAddingParent ? `Ayah dari ${relatedPersonName}. Ibu dapat ditambahkan nanti melalui Tambah pasangan.` : isAddingFirst ? 'Isi data anggota keluarga pertama yang akan menjadi akar pohon.' : `Anak dari ${relatedPersonName}.`} Isi nama secara manual sebelum menambahkannya ke pohon.</p>
             <div className="space-y-4">
               <div className="inspector-identity">
                 <div className="inspector-avatar" aria-label="Pratinjau foto profil">

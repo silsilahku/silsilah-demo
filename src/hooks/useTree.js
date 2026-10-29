@@ -314,40 +314,10 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     return sortChildrenByBirthDate(children.map(c => c.id), people).map(id => people[id]);
   }, [people, unions]);
 
-  const handleAddFirstPerson = useCallback((name = 'Kepala Keluarga') => {
-    const newPersonId = 'p-' + Date.now();
-    const newPerson = {
-      id: newPersonId,
-      name: name,
-      nickname: name,
-      gender: 'male',
-      religion: '',
-      birthYear: '',
-      deathYear: '',
-      isDeceased: false,
-      domicile: '',
-      bio: '',
-      photo: '',
-      notes: '',
-      x: 100,
-      y: 100,
-    };
-
-    const nextPeople = { ...people, [newPersonId]: newPerson };
-    const nextUnions = { ...unions };
-
-    setPeople(autoArrangeTree(nextPeople, nextUnions, layoutDirection, hiddenPersonIds));
-    setUnions(nextUnions);
-    setSelectedId(newPersonId);
-
-    (async () => {
-      try {
-        if (persistRef.current?.savePerson) await persistRef.current.savePerson(newPerson);
-      } catch (err) {
-        console.error('Gagal menyimpan orang pertama ke Supabase:', err);
-      }
-    })();
-  }, [people, unions, layoutDirection, hiddenPersonIds]);
+  const handleAddFirstPerson = useCallback(() => {
+    setPendingChildRequest({ type: 'first', key: Date.now() });
+    setIsEditDrawerOpen(true);
+  }, []);
 
   const handleAddSpouse = useCallback((targetPersonId) => {
     const target = people[targetPersonId];
@@ -388,6 +358,45 @@ export const useTree = (initialData = { people: {}, unions: {} }) => {
     const request = pendingChildRequest;
     const childNickname = nickname.trim();
     if (!request || !childNickname) return false;
+
+    if (request.type === 'first') {
+      const personId = 'p-first-' + Date.now();
+      const newPerson = {
+        id: personId,
+        name: name.trim(),
+        nickname: childNickname,
+        gender: gender || 'male',
+        religion: religion.trim(),
+        birthYear: birthYear.trim(),
+        deathYear: deathYear.trim(),
+        isDeceased: Boolean(isDeceased),
+        domicile: domicile.trim(),
+        bio: bio.trim(),
+        photo: '',
+        notes: notes.trim(),
+        x: 100,
+        y: 100,
+      };
+      const nextPeople = { ...people, [personId]: newPerson };
+      const laidOutPeople = autoArrangeTree(nextPeople, unions, layoutDirection, hiddenPersonIds);
+      setPeople(laidOutPeople);
+      setSelectedId(personId);
+      if (!keepDrawerOpen) {
+        setIsEditDrawerOpen(false);
+        setPendingChildRequest(null);
+      }
+      (async () => {
+        try {
+          if (persistRef.current?.savePerson) {
+            const ok = await persistRef.current.savePerson({ ...newPerson, ...laidOutPeople[personId] });
+            if (!ok) console.error('Gagal menyimpan anggota pertama ke Supabase.');
+          }
+        } catch (err) {
+          console.error('Gagal menyimpan anggota pertama ke Supabase:', err);
+        }
+      })();
+      return { id: personId, person: laidOutPeople[personId] };
+    }
 
     if (request.type === 'parent') {
       const child = people[request.targetPersonId];
